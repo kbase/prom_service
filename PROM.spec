@@ -1,12 +1,12 @@
 /*
 PROM (Probabilistic Regulation of Metabolism) Service
 
-This service enables the creation of FBA model objects which include constraints based on regulatory
+This service enables the creation of FBA model constraint objects that are based on regulatory
 networks and expression data, as described in [1].  Constraints are constructed by either automatically
 aggregating necessary information from the CDS (if available for a given genome), or by adding user
 expression and regulatory data.  PROM provides the capability to simulate transcription factor knockout
-phenotypes.  PROM model objects are created in a user's workspace, and can be operated on and simulated
-with the KBase FBA Modeling Service.
+phenotypes.  PROM model constraint objects are created in a user's workspace, and can be operated on and
+used in conjunction with an FBA model with the KBase FBA Modeling Service.
 
 [1] Chandrasekarana S. and Price ND. Probabilistic integrative modeling of genome-scale metabolic and
 regulatory networks in Escherichia coli and Mycobacterium tuberculosis. PNAS (2010) 107:17845-50.
@@ -52,9 +52,9 @@ module PROM
     /* Status message used by this service to provide information on the final status of a step  */
     typedef string status;
     
-    /* A workspace ID for the prom model object, used to access any models created by this service in
+    /* A workspace ID for the prom constraint object, used to access any models created by this service in
     a user's workpace */
-    typedef string prom_model_id;
+    typedef string prom_constraint_id;
     
     /* Specifies the source of a data object, e.g. KBase or MicrobesOnline */
     typedef string source;
@@ -82,7 +82,7 @@ module PROM
                                                condition (true=on, false=off).  It is therefore assumed that
                                                the features are protein coding genes.
         source expression_data_source        - the source of this collection of expression data
-        source_id expression_data_source_id  - the id of the data ob
+        source_id expression_data_source_id  - the id of this data object in the workspace
     */
     typedef structure {
         boolean_gene_expression_data_id id;
@@ -108,30 +108,33 @@ module PROM
     /* A simplified representation of a regulatory interaction that also stores the probability of the interaction
     (specificially, as the probability the target is on given that the regulator is off), which is necessary for PROM
     to construct FBA constraints.  NOTE: this data object should be migrated to the Regulation service, and simply
-    imported here. NOTE 2: feature_id may have to be changed to be a more general ID, as models could potentially be
-    loaded that are not in the kbase namespace. Note then that in this case everything, including expression data
-    and the fba model must be in the same namespace. NOTE: this data object should be migrated to the Regulation
-    service, and simply imported here.
+    imported here. NOTE 2: feature_id may actually be a more general ID, as models can potentially be loaded that
+    are not in the kbase namespace. In this case everything, including expression data and the fba model must be in
+    the same namespace.
     
-        feature_id transcriptionFactor  - the genome feature that is the regulator
-        feature_id transcriptionTarget  - the genome feature that is the target of regulation
-        float probabilityTTonGivenTFoff - the probability that the transcriptional target is ON, given that the
-                                          transcription factor is not expressed, as defined in Candrasekarana &
-                                          Price, PNAS 2010 and used to predict cumulative effects of multiple
-                                          regulatory interactions with a single target.
-        float probabilityTTonGivenTFon - the probability that the transcriptional target is ON, given that the
-                                          transcription factor is expressed
+        feature_id TF            - the genome feature that is the regulator
+        feature_id target        - the genome feature that is the target of regulation
+        float probTTonGivenTFoff - the probability that the transcriptional target is ON, given that the
+                                   transcription factor is not expressed, as defined in Candrasekarana &
+                                   Price, PNAS 2010 and used to predict cumulative effects of multiple
+                                   regulatory interactions with a single target.  Set to null or empty if
+                                   this probability has not been calculated yet.
+        float probTTonGivenTFon  - the probability that the transcriptional target is ON, given that the
+                                   transcription factor is expressed.    Set to null or empty if
+                                   this probability has not been calculated yet.
     */
     typedef structure {
-        feature_id transcriptionFactor;
-        feature_id transcriptionTarget;
+        feature_id TF;
+        feature_id target;
         float probabilityTTonGivenTFoff;
         float probabilityTTonGivenTFon;
     } regulatory_interaction;
     
+    
     /* A collection of regulatory interactions that together form a regulatory network. This is an extremely
     simplified data object for use in constructing a PROM model.  NOTE: this data object should be migrated to
-    the Regulation service, and simply imported here. */
+    the Regulation service, and simply imported here.
+    */
     typedef list<regulatory_interaction> regulatory_network;
     
     
@@ -176,15 +179,46 @@ module PROM
     
     
     
-    /* This method takes a given genome id, and retrieves experimental expression data (if any) for the genome from
+    /*
+    This method takes a given genome id, and retrieves experimental expression data (if any) for the genome from
     the CDM.  It then uses this expression data to construct an expression_data_collection in the current workspace.
     Note that this method may take a long time to complete if there is a lot of CDM data for this genome.  Also note
-    that the current implementation relies on on/off calls being stored in the CDM (correct as of 12/2012).  This will
+    that the current implementation relies on on/off calls being stored in the CDM (correct as of 1/2013).  This will
     almost certainly change, but that means that the on/off calling algorithm must be added to this method, or
-    better yet implemented in the expression data service. */
+    better yet implemented in the expression data service.
+    
+    should use type compiler auth, but for now we just use a bearer token so we can pass it to workspace services:
+    funcdef retrieve_expression_data(genome_id id, workspace_name workspace_name) returns (status,expression_data_collection_id) authentication required;
+    */
     funcdef retrieve_expression_data(genome_id id, workspace_name workspace_name, auth_token token) returns (status,expression_data_collection_id);
-    /*should use type compiler auth, but for now we just use a bearer token so we can pass it to workspace services*/
-    /* funcdef retrieve_expression_data(genome_id id, workspace_name workspace_name) returns (status,expression_data_collection_id) authentication required; */
+
+    
+    /* ********************  THIS IS WHAT THE FINAL WORKING FUNCTIONS WILL LOOK LIKE:: */
+    
+    funcdef get_expression_data_by_genome(genome_id genome_id, workspace_name workspace_name, auth_token token) returns (status status,expression_data_collection_id expression_data_collection_id);
+    /* funcdef create_expression_data_collection(workspace_name) returns (status, expression_data_collection_id); */
+    /* funcdef add_expression_data_to_collection(workspace_name, list<expression_data>); */
+    /* funcdef merge_expression_data_collections(list <expression_data_collection_id> collections) returns (status,expression_data_collection_id); */
+    
+    
+    funcdef get_regulatory_network_by_genome(genome_id genome_id, workspace_name workspace_name, auth_token token) returns (status status, regulatory_network_id regulatory_network_id);
+    /* funcdef add_regulatory_network(workspace_name, regulatory_network); */
+    
+    
+    funcdef change_regulatory_network_namespace(regulatory_network_id regulatory_network_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, regulatory_network_id new_regulatory_network_id);
+    
+    
+    
+    /* *************************************************** */
+    
+    /*
+    Once you have loaded gene expression data and a regulatory network for a specific genome, then
+    you can use this method to create add PROM contraints to the FBA model, thus creating a PROM model.  This method will then return
+    you the ID of the PROM model object created in your workspace.  The PROM Model object can then be simulated, visualized, edited, etc.
+    using methods from the FBAModeling Service.
+    */
+    funcdef create_prom_constraints(expression_data_collection_id e_id, regulatory_network_id r_id, workspace_name workspace_name, auth_token token) returns (status status, prom_constraint_id prom_constraint_id);
+    
     
     
     
@@ -213,11 +247,6 @@ module PROM
     funcdef load_regulatory_network_data(regulomeModelId id) returns (status,regulatory_network_id);
     
     
-    /* Once you have loaded gene expression data and a regulatory network and have created an fba model for your genome, then
-    you can use this method to create add PROM contraints to the FBA model, thus creating a PROM model.  This method will then return
-    you the ID of the PROM model object created in your workspace.  The PROM Model object can then be simulated, visualized, edited, etc.
-    using methods from the FBAModeling Service. */
-    funcdef create_prom_model(expression_data_collection_id e_id, regulatory_network_id r_id, fbamodel_id fba_id) returns (status, prom_model_id);
     
 
 };

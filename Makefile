@@ -150,7 +150,7 @@ deploy-service-scripts:
 	cp debug_start_service $(SERVICE_DIR)/
 	cp stop_service $(SERVICE_DIR)/
 	cp reboot_service $(SERVICE_DIR)/
-	cp prom_config.ini $(SERVICE_DIR)/
+	cp deploy.cfg $(SERVICE_DIR)/
 
 undeploy:
 	rm -rfv $(SERVICE_DIR)

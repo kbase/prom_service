@@ -13,12 +13,12 @@ PROM
 
 PROM (Probabilistic Regulation of Metabolism) Service
 
-This service enables the creation of FBA model objects which include constraints based on regulatory
+This service enables the creation of FBA model constraint objects that are based on regulatory
 networks and expression data, as described in [1].  Constraints are constructed by either automatically
 aggregating necessary information from the CDS (if available for a given genome), or by adding user
 expression and regulatory data.  PROM provides the capability to simulate transcription factor knockout
-phenotypes.  PROM model objects are created in a user's workspace, and can be operated on and simulated
-with the KBase FBA Modeling Service.
+phenotypes.  PROM model constraint objects are created in a user's workspace, and can be operated on and
+used in conjunction with an FBA model with the KBase FBA Modeling Service.
 
 [1] Chandrasekarana S. and Price ND. Probabilistic integrative modeling of genome-scale metabolic and
 regulatory networks in Escherichia coli and Mycobacterium tuberculosis. PNAS (2010) 107:17845-50.
@@ -45,28 +45,26 @@ sub new
     bless $self, $class;
     #BEGIN_CONSTRUCTOR
     
-    
     #load a configuration file to determine where all the services live
     my $c = Config::Simple->new();
-    $c->read("prom_config.ini");
+    $c->read("deploy.cfg");
     
-    my $erdb_url = $c->param("service-urls.erdb");
+    my $erdb_url = $c->param("prom_service.erdb");
     if($erdb_url) {
 	$self->{'erdb'} = Bio::KBase::ERDB_Service::Client->new($erdb_url);
 	print "Connecting ERDB Service client  to server: $erdb_url\n";
     } else {
 	die "ERROR STARTING SERVICE! prom_config.ini file does not exist, or does not contain 'service-urls.erdb' variable.\n";
     }
-    my $reg_url = $c->param("service-urls.regulation");
+    my $reg_url = $c->param("prom_service.regulation");
     if($reg_url) {
 	$self->{'regulation'} = Bio::KBase::Regulation::Client->new($reg_url);
-	#$self->{'regulation'} = Bio::KBase::ERDB_Service::Client->new("http://localhost:7061");
 	print "Connecting Regulation Service client  to server: $reg_url\n";
     } else {
-	die "ERROR STARTING SERVICE! prom_config.ini file does not exist, or does not contain 'service-urls.reglation' variable.\n";
+	die "ERROR STARTING SERVICE! prom_config.ini file does not exist, or does not contain 'service-urls.regulation' variable.\n";
 	
     }
-    my $workspace_url = $c->param("service-urls.workspace");
+    my $workspace_url = $c->param("prom_service.workspace");
     if($workspace_url) {
 	# may have to reconnect at each function call!
 	$self->{'workspace'} = Bio::KBase::workspaceService::Client->new($workspace_url);
@@ -75,7 +73,7 @@ sub new
 	die "ERROR STARTING SERVICE! prom_config.ini file does not exist, or does not contain 'service-urls.workspace' variable.\n";
     }
     
-    my $scratch_space = $c->param("local-paths.scratch-space");
+    my $scratch_space = $c->param("prom_service.scratch-space");
     if($scratch_space) {
 	$self->{'scratch_space'} = $scratch_space;
 	print "Scratch space for temporary files is set to : $scratch_space\n";
@@ -300,9 +298,12 @@ expression_data_collection_id is a string
 This method takes a given genome id, and retrieves experimental expression data (if any) for the genome from
 the CDM.  It then uses this expression data to construct an expression_data_collection in the current workspace.
 Note that this method may take a long time to complete if there is a lot of CDM data for this genome.  Also note
-that the current implementation relies on on/off calls being stored in the CDM (correct as of 12/2012).  This will
+that the current implementation relies on on/off calls being stored in the CDM (correct as of 1/2013).  This will
 almost certainly change, but that means that the on/off calling algorithm must be added to this method, or
 better yet implemented in the expression data service.
+
+should use type compiler auth, but for now we just use a bearer token so we can pass it to workspace services:
+funcdef retrieve_expression_data(genome_id id, workspace_name workspace_name) returns (status,expression_data_collection_id) authentication required;
 
 =back
 
@@ -439,7 +440,7 @@ sub retrieve_expression_data
 	    print Dumper(@expression_data_uuid_list)."\n";
 	    
 	    # create UUID for the collection
-	    my $expression_data_collection_id = $self->{'uuid_generator'}->create_str();
+	    $expression_data_collection_id = $self->{'uuid_generator'}->create_str();
 	    print "collection uuid = ".$expression_data_collection_id."\n";
 	    
 	    # create the collection and encode it as JSON
@@ -466,15 +467,12 @@ sub retrieve_expression_data
 	    print Dumper($object_metadata)."\n";
 	    
 	    $status = $status."  -> saving data for the collection of experiments with ID:$expression_data_collection_id\n";
-	    $status = "SUCCESS.\n".$status."SUCCESS\n";
+	    $status = "SUCCESS.\n".$status;
 	    
 	    
 	} else {
-	    $status = "failure - no gene expression experiments found for the specified genome.\n".$status;
+	    $status = "FAILURE - no gene expression experiments found for the specified genome.\n".$status;
 	}
-    
-    
-    
     
     #}
     #else {
@@ -496,6 +494,631 @@ sub retrieve_expression_data
 							       method_name => 'retrieve_expression_data');
     }
     return($return_1, $return_2);
+}
+
+
+
+
+=head2 get_expression_data_by_genome
+
+  $status, $expression_data_collection_id = $obj->get_expression_data_by_genome($genome_id, $workspace_name, $token)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$genome_id is a genome_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
+genome_id is a kbase_id
+kbase_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+expression_data_collection_id is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$genome_id is a genome_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
+genome_id is a kbase_id
+kbase_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+expression_data_collection_id is a string
+
+
+=end text
+
+
+
+=item Description
+
+*******************  THIS IS WHAT THE FINAL WORKING FUNCTIONS WILL LOOK LIKE::
+
+=back
+
+=cut
+
+sub get_expression_data_by_genome
+{
+    my $self = shift;
+    my($genome_id, $workspace_name, $token) = @_;
+
+    my @_bad_arguments;
+    (!ref($genome_id)) or push(@_bad_arguments, "Invalid type for argument \"genome_id\" (value was \"$genome_id\")");
+    (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
+    (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to get_expression_data_by_genome:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'get_expression_data_by_genome');
+    }
+
+    my $ctx = $Bio::KBase::PROM::Service::CallContext;
+    my($status, $expression_data_collection_id);
+    #BEGIN get_expression_data_by_genome
+    #END get_expression_data_by_genome
+    my @_bad_returns;
+    (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
+    (!ref($expression_data_collection_id)) or push(@_bad_returns, "Invalid type for return variable \"expression_data_collection_id\" (value was \"$expression_data_collection_id\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to get_expression_data_by_genome:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'get_expression_data_by_genome');
+    }
+    return($status, $expression_data_collection_id);
+}
+
+
+
+
+=head2 get_regulatory_network_by_genome
+
+  $status, $regulatory_network_id = $obj->get_regulatory_network_by_genome($genome_id, $workspace_name, $token)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$genome_id is a genome_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$regulatory_network_id is a regulatory_network_id
+genome_id is a kbase_id
+kbase_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+regulatory_network_id is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$genome_id is a genome_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$regulatory_network_id is a regulatory_network_id
+genome_id is a kbase_id
+kbase_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+regulatory_network_id is a string
+
+
+=end text
+
+
+
+=item Description
+
+funcdef merge_expression_data_collections(list <expression_data_collection_id> collections) returns (status,expression_data_collection_id);
+
+=back
+
+=cut
+
+sub get_regulatory_network_by_genome
+{
+    my $self = shift;
+    my($genome_id, $workspace_name, $token) = @_;
+
+    my @_bad_arguments;
+    (!ref($genome_id)) or push(@_bad_arguments, "Invalid type for argument \"genome_id\" (value was \"$genome_id\")");
+    (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
+    (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to get_regulatory_network_by_genome:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'get_regulatory_network_by_genome');
+    }
+
+    my $ctx = $Bio::KBase::PROM::Service::CallContext;
+    my($status, $regulatory_network_id);
+    #BEGIN get_regulatory_network_by_genome
+    
+    # setup the return values and retrieve the client libs
+    $status = '';
+    $regulatory_network_id = '';
+    my $reg = $self->{'regulation'};
+    my $ws  = $self->{'workspace'};
+    
+    # get a regulomeModelId based on a kbase genome ID
+    my $regulome_model_id = '';
+    my $regulomes = $reg->getRegulomeModelsByGenomeId($genome_id);
+    my $n_regulomes = scalar @{$regulomes};
+    if ($n_regulomes == 0) {
+	$status = "FAILURE - no regulome models exist for genome $genome_id\n".$status;
+    } else {
+	$status .= "  -> found $n_regulomes regulome model(s) for genome $genome_id\n";
+	$status .= "  -> possible models are :\n";
+	my $max_regulon_count = -1;
+	foreach my $r (@$regulomes) {
+	    $status .= "       -".$r->{regulomeModelId}." (regulomeSource:".$r->{regulomeSource}.", tfRegulonCount:".$r->{tfRegulonCount}.")\n";
+	    if ($r->{tfRegulonCount} > $max_regulon_count) {
+		$max_regulon_count = $r->{tfRegulonCount};
+		$regulome_model_id = $r->{regulomeModelId};
+	    }
+	}
+	$status .= "  -> selected regulome model with the most regulons ($regulome_model_id)\n"
+    }
+    
+    # actually build the network if we found a regulome
+    if($regulome_model_id ne '') {
+	
+	#as per PROM.spec, this object is an array of hashes, where each hash
+	#is a regulatory interaction consisting of keys TF, target, probTTonGivenTFoff, and probTTonGivenTFon
+	my $regulatory_network = [];
+	# flat file version of the regulatory network, needed until workspace service handles lists...
+	my $regulatory_network_flat = '';
+	my $interactionCounter = 0;
+	
+	my $stats = $reg->getRegulonModelStats($regulome_model_id);
+	
+	foreach my $regulon_stat (@$stats) {
+	    # fetch each regulon model, which is comprised of a set of regulators and a set of operons
+	    my $regulonModel = $reg->getRegulonModel($regulon_stat->{regulonModelId});
+    
+	    # grab the kbase ids of each regulator for this regulon
+	    my $regulators = $regulonModel->{regulators};
+	    my @regulator_ids;
+	    foreach my $r (@$regulators) { push @regulator_ids, $r->{regulatorId}; }
+    
+	    # loop through each gene of each operon regulated by the regulators, and build the network
+	    # of pair-wise regulatory interactions
+	    my $operons    = $regulonModel->{operons};
+	    foreach my $opr (@$operons) {
+	        foreach my $gene (@{$opr->{genes}}) {
+	            foreach my $reg_id (@regulator_ids) {
+	                my $regulatory_interaction = {
+	                                TF => $reg_id,
+	                                target => $gene->{geneId},
+	                                probTTonGivenTFoff => '',
+	                                probTTonGivenTFon => '',
+	                                };
+	                push @$regulatory_network, $regulatory_interaction;
+			$regulatory_network_flat .= $reg_id."\t".$gene->{geneId}."\n";
+			$interactionCounter++;
+	            }
+	        }
+	    }
+	}
+	$status .= "  -> compiled regulatory network with $interactionCounter regulatory interactions\n";
+	
+	# if we were able to populate the network, then save it to workspace services 
+	if($interactionCounter > 0) {
+	    # create UUID for the workspace object
+	    $regulatory_network_id = $self->{'uuid_generator'}->create_str();
+	    
+	    # encode the regulatory network as a JSON
+	    my $encoded_json_reg_network = encode_json $regulatory_network;
+	    #print "DATA:\n".$encoded_json_reg_network."\n";
+	    #print "DATA(FLAT):\n".$regulatory_network_flat."\n";
+	    
+	    # save the collection to the workspace
+	    my $workspace_save_obj_params = {
+		id => $regulatory_network_id,
+		type => "Unspecified",
+		data => $regulatory_network_flat, #$encoded_json_reg_network,
+		workspace => $workspace_name,
+		command => "PROM::get_regulatory_network_by_genome",
+		auth => $token,
+		json => 0,
+		compressed => 0,
+		retrieveFromURL => 0,
+	    };
+	    
+	    #print Dumper($workspace_save_obj_params)."\n";
+	    my $object_metadata = $ws->save_object($workspace_save_obj_params);
+	    #print Dumper($object_metadata)."\n";
+	    $status = $status."  -> saving the regulatory network to your workspace with ID:$regulatory_network_id\n";
+	    $status = "SUCCESS.\n".$status;
+
+	} else {
+	    $status = "FAILURE - no regulatory interactions found for \n".$status;
+	}
+    }
+    
+    #END get_regulatory_network_by_genome
+    my @_bad_returns;
+    (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
+    (!ref($regulatory_network_id)) or push(@_bad_returns, "Invalid type for return variable \"regulatory_network_id\" (value was \"$regulatory_network_id\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to get_regulatory_network_by_genome:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'get_regulatory_network_by_genome');
+    }
+    return($status, $regulatory_network_id);
+}
+
+
+
+
+=head2 change_regulatory_network_namespace
+
+  $status, $new_regulatory_network_id = $obj->change_regulatory_network_namespace($regulatory_network_id, $new_feature_names, $workspace_name, $token)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$regulatory_network_id is a regulatory_network_id
+$new_feature_names is a reference to a hash where the key is a string and the value is a string
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$new_regulatory_network_id is a regulatory_network_id
+regulatory_network_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$regulatory_network_id is a regulatory_network_id
+$new_feature_names is a reference to a hash where the key is a string and the value is a string
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$new_regulatory_network_id is a regulatory_network_id
+regulatory_network_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+
+
+=end text
+
+
+
+=item Description
+
+funcdef add_regulatory_network(workspace_name, regulatory_network);
+
+=back
+
+=cut
+
+sub change_regulatory_network_namespace
+{
+    my $self = shift;
+    my($regulatory_network_id, $new_feature_names, $workspace_name, $token) = @_;
+
+    my @_bad_arguments;
+    (!ref($regulatory_network_id)) or push(@_bad_arguments, "Invalid type for argument \"regulatory_network_id\" (value was \"$regulatory_network_id\")");
+    (ref($new_feature_names) eq 'HASH') or push(@_bad_arguments, "Invalid type for argument \"new_feature_names\" (value was \"$new_feature_names\")");
+    (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
+    (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to change_regulatory_network_namespace:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'change_regulatory_network_namespace');
+    }
+
+    my $ctx = $Bio::KBase::PROM::Service::CallContext;
+    my($status, $new_regulatory_network_id);
+    #BEGIN change_regulatory_network_namespace
+    
+    # currently this runs out of memory!  why!?!?!?!
+#    $status = ''; $new_regulatory_network_id='';
+#    my $ws  = $self->{'workspace'};
+#    
+#     # check if the regulatory network data exists
+#    my $get_object_params = {
+#	id => $regulatory_network_id,
+#	type => "Unspecified",
+#	workspace => $workspace_name,
+#	auth => $token,
+#    };
+#    my $r_exists = $ws->has_object($get_object_params);
+#    if(!$r_exists) {
+#	$status = "FAILURE - no regulatory network data with ID $regulatory_network_id found!\n".$status;
+#    } else {
+#	# if it does exist grab the object
+#	$get_object_params->{id}=$regulatory_network_id;
+#	my $updated_version = "";
+#	my $regnet = $ws->get_object($get_object_params)->{data};
+#	my @lines = split /\n/, $regnet;
+#	foreach my $line (@lines) {
+#	    chomp $line;
+#	    my @ids = split /\t/, $line;
+#	    print $line."\n";
+#	    if( scalar(@ids) != 2 ) {
+#		$status = "ERROR - malformed line in data: $line\n".$status;
+#		last;
+#	    }
+#	    if(exists $new_feature_names->{$ids[0]}) {
+#		if(exists $new_feature_names->{$ids[1]}) {
+#		    $updated_version .= $new_feature_names->{$ids[0]}."\t".$new_feature_names->{$ids[1]}."\n";
+#		} else {
+#		    $status .= "WARNING - cannot find match for target '".$ids[0]."', skipping this interaction\n".$status;
+#		}
+#	    } else {
+#		$status .= "WARNING - cannot find match for TF '".$ids[0]."', skipping this interaction\n".$status;
+#	    }
+#	}
+#	
+#	# save a new object in the workspace
+#	if($updated_version ne '') {
+#	    
+#	    $new_regulatory_network_id = $self->{'uuid_generator'}->create_str();
+#	    
+#	    # save the collection to the workspace
+#	    my $workspace_save_obj_params = {
+#		id => $new_regulatory_network_id,
+#		type => "Unspecified",
+#		data => $updated_version,
+#		workspace => $workspace_name,
+#		command => "PROM::get_regulatory_network_by_genome",
+#		auth => $token,
+#		json => 0,
+#		compressed => 0,
+#		retrieveFromURL => 0,
+#	    };
+#	    my $object_metadata = $ws->save_object($workspace_save_obj_params);
+#	    $status = $status."  -> saving the new regulatory network to your workspace with ID:$regulatory_network_id\n";
+#	    $status = "SUCCESS.\n".$status;
+#	} else {
+#	    $status = "ERROR - not saving new version because no regulatory interactions in the new namespace exist!\n".$status;
+#	}
+#    }
+    
+    
+    #END change_regulatory_network_namespace
+    my @_bad_returns;
+    (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
+    (!ref($new_regulatory_network_id)) or push(@_bad_returns, "Invalid type for return variable \"new_regulatory_network_id\" (value was \"$new_regulatory_network_id\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to change_regulatory_network_namespace:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'change_regulatory_network_namespace');
+    }
+    return($status, $new_regulatory_network_id);
+}
+
+
+
+
+=head2 create_prom_constraints
+
+  $status, $prom_constraint_id = $obj->create_prom_constraints($e_id, $r_id, $workspace_name, $token)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$e_id is an expression_data_collection_id
+$r_id is a regulatory_network_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$prom_constraint_id is a prom_constraint_id
+expression_data_collection_id is a string
+regulatory_network_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+prom_constraint_id is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$e_id is an expression_data_collection_id
+$r_id is a regulatory_network_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$prom_constraint_id is a prom_constraint_id
+expression_data_collection_id is a string
+regulatory_network_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+prom_constraint_id is a string
+
+
+=end text
+
+
+
+=item Description
+
+Once you have loaded gene expression data and a regulatory network for a specific genome, then
+you can use this method to create add PROM contraints to the FBA model, thus creating a PROM model.  This method will then return
+you the ID of the PROM model object created in your workspace.  The PROM Model object can then be simulated, visualized, edited, etc.
+using methods from the FBAModeling Service.
+
+=back
+
+=cut
+
+sub create_prom_constraints
+{
+    my $self = shift;
+    my($e_id, $r_id, $workspace_name, $token) = @_;
+
+    my @_bad_arguments;
+    (!ref($e_id)) or push(@_bad_arguments, "Invalid type for argument \"e_id\" (value was \"$e_id\")");
+    (!ref($r_id)) or push(@_bad_arguments, "Invalid type for argument \"r_id\" (value was \"$r_id\")");
+    (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
+    (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to create_prom_constraints:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'create_prom_constraints');
+    }
+
+    my $ctx = $Bio::KBase::PROM::Service::CallContext;
+    my($status, $prom_constraint_id);
+    #BEGIN create_prom_constraints
+    
+    #set up return variables and fetch the workspace client handle
+    $status = "";
+    $prom_constraint_id = "";
+    my $ws  = $self->{'workspace'};
+    
+    # try to get the gene expression data collection from a workspace
+    my $get_object_params = {
+	id => $e_id,
+	type => "Unspecified",
+	workspace => $workspace_name,
+	auth => $token,
+    };
+    my $e_exists = $ws->has_object($get_object_params);
+    if(!$e_exists) {
+	$status = "FAILURE - no expression data collection with ID $e_id found!\n".$status;
+    }
+    # try to get the gene expression data collection from a workspace
+    $get_object_params->{id}=$r_id;
+    my $r_exists = $ws->has_object($get_object_params);
+    if(!$r_exists) {
+	$status = "FAILURE - no regulatory network data with ID $r_id found!\n".$status;
+    }
+    
+    
+    # if both data sets exist, then pull them
+    my $found_error;
+    if($e_exists && $r_exists) {
+	
+	# first create temporary file in which to dump the data (so that we can call fba model directly)
+	$File::Temp::KEEP_ALL = 1; # FOR DEBUGGING ONLY, WE DON't WANT TO KEEP ALL FILES IN PRODUCTION
+	my $tmp_reg_net_file = File::Temp->new( TEMPLATE => 'regnetXXXXXX',
+	    		    DIR => $self->{'scratch_space'},
+	    		    SUFFIX => '.tmp');
+	my $tmp_exp_file = File::Temp->new( TEMPLATE => 'expressionXXXXXX',
+	    		    DIR => $self->{'scratch_space'},
+	    		    SUFFIX => '.tmp');
+	
+	$get_object_params->{id}=$r_id;
+	my $regnet = $ws->get_object($get_object_params)->{data};
+	print $tmp_reg_net_file $regnet;
+	
+	$get_object_params->{id}=$e_id;
+	my $exp_collection = $ws->get_object($get_object_params);
+	my $expression_data_id_list = $exp_collection->{data}->{expression_data};
+	my $n_features = -1;
+	my $output_list = {};
+	foreach my $expression_data_id (@$expression_data_id_list) {
+	    
+	    $get_object_params->{id}=$expression_data_id;
+	    my $on_off_call = $ws->get_object($get_object_params)->{data}->{on_off_call};
+	    
+	    # if we are the first to go, let's prep the output list and write the header line
+	    if($n_features==-1) {
+		$n_features = scalar keys %$on_off_call;
+		print $tmp_exp_file "Experiment";
+		foreach my $call (sort keys %$on_off_call) {
+		    print $tmp_exp_file "\t".$call;
+		}
+		print $tmp_exp_file "\n";
+	    }
+	    
+	    # save each of the on/off calls (this allows us to ensure that thefeature ids are consistant between
+	    # experimental data chuncks
+	    foreach my $call (keys %{$on_off_call}) {
+		$output_list->{$call} = $on_off_call->{$call};
+	    }
+	    
+	    # for now, we assume that all expression data must list the same number of features, so the length
+	    # of the output list should remain unchanged
+	    if($n_features == scalar keys %$output_list ) {
+		# write the data to file
+		print $tmp_exp_file $expression_data_id;
+		foreach my $call (sort keys %{$output_list}) {
+		    print $tmp_exp_file "\t".$output_list->{$call};
+		}
+		print $tmp_exp_file "\n";
+		
+	    } else {
+		$status = "FAILURE - expression data in collection has variable numbers of feature data!  This service cannot handle this yet.\n".$status;
+		$found_error = 1;
+		last;
+	    }
+	}
+	
+	# still with us?  if so, then onwards and upwards.  Let's actually call the create prom model script.
+	if(!$found_error) {
+	    print "no errors found thus far\n";
+	    
+	    
+	    
+	    
+	    
+	}
+    }
+    
+    
+    
+    
+
+    
+    
+    
+    #END create_prom_constraints
+    my @_bad_returns;
+    (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
+    (!ref($prom_constraint_id)) or push(@_bad_returns, "Invalid type for return variable \"prom_constraint_id\" (value was \"$prom_constraint_id\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to create_prom_constraints:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'create_prom_constraints');
+    }
+    return($status, $prom_constraint_id);
 }
 
 
@@ -731,94 +1354,6 @@ sub load_regulatory_network_data
 	my $msg = "Invalid returns passed to load_regulatory_network_data:\n" . join("", map { "\t$_\n" } @_bad_returns);
 	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
 							       method_name => 'load_regulatory_network_data');
-    }
-    return($return_1, $return_2);
-}
-
-
-
-
-=head2 create_prom_model
-
-  $return_1, $return_2 = $obj->create_prom_model($e_id, $r_id, $fba_id)
-
-=over 4
-
-=item Parameter and return types
-
-=begin html
-
-<pre>
-$e_id is an expression_data_collection_id
-$r_id is a regulatory_network_id
-$fba_id is a fbamodel_id
-$return_1 is a status
-$return_2 is a prom_model_id
-expression_data_collection_id is a string
-regulatory_network_id is a string
-fbamodel_id is a string
-status is a string
-prom_model_id is a string
-
-</pre>
-
-=end html
-
-=begin text
-
-$e_id is an expression_data_collection_id
-$r_id is a regulatory_network_id
-$fba_id is a fbamodel_id
-$return_1 is a status
-$return_2 is a prom_model_id
-expression_data_collection_id is a string
-regulatory_network_id is a string
-fbamodel_id is a string
-status is a string
-prom_model_id is a string
-
-
-=end text
-
-
-
-=item Description
-
-Once you have loaded gene expression data and a regulatory network and have created an fba model for your genome, then
-you can use this method to create add PROM contraints to the FBA model, thus creating a PROM model.  This method will then return
-you the ID of the PROM model object created in your workspace.  The PROM Model object can then be simulated, visualized, edited, etc.
-using methods from the FBAModeling Service.
-
-=back
-
-=cut
-
-sub create_prom_model
-{
-    my $self = shift;
-    my($e_id, $r_id, $fba_id) = @_;
-
-    my @_bad_arguments;
-    (!ref($e_id)) or push(@_bad_arguments, "Invalid type for argument \"e_id\" (value was \"$e_id\")");
-    (!ref($r_id)) or push(@_bad_arguments, "Invalid type for argument \"r_id\" (value was \"$r_id\")");
-    (!ref($fba_id)) or push(@_bad_arguments, "Invalid type for argument \"fba_id\" (value was \"$fba_id\")");
-    if (@_bad_arguments) {
-	my $msg = "Invalid arguments passed to create_prom_model:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'create_prom_model');
-    }
-
-    my $ctx = $Bio::KBase::PROM::Service::CallContext;
-    my($return_1, $return_2);
-    #BEGIN create_prom_model
-    #END create_prom_model
-    my @_bad_returns;
-    (!ref($return_1)) or push(@_bad_returns, "Invalid type for return variable \"return_1\" (value was \"$return_1\")");
-    (!ref($return_2)) or push(@_bad_returns, "Invalid type for return variable \"return_2\" (value was \"$return_2\")");
-    if (@_bad_returns) {
-	my $msg = "Invalid returns passed to create_prom_model:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'create_prom_model');
     }
     return($return_1, $return_2);
 }
@@ -1176,7 +1711,7 @@ a string
 
 
 
-=head2 prom_model_id
+=head2 prom_constraint_id
 
 =over 4
 
@@ -1184,7 +1719,7 @@ a string
 
 =item Description
 
-A workspace ID for the prom model object, used to access any models created by this service in
+A workspace ID for the prom constraint object, used to access any models created by this service in
 a user's workpace
 
 
@@ -1348,7 +1883,7 @@ Data service, and simply imported here.
                                            condition (true=on, false=off).  It is therefore assumed that
                                            the features are protein coding genes.
     source expression_data_source        - the source of this collection of expression data
-    source_id expression_data_source_id  - the id of the data ob
+    source_id expression_data_source_id  - the id of this data object in the workspace
 
 
 =item Definition
@@ -1431,19 +1966,20 @@ expression_data_ids has a value which is a reference to a list where each elemen
 A simplified representation of a regulatory interaction that also stores the probability of the interaction
 (specificially, as the probability the target is on given that the regulator is off), which is necessary for PROM
 to construct FBA constraints.  NOTE: this data object should be migrated to the Regulation service, and simply
-imported here. NOTE 2: feature_id may have to be changed to be a more general ID, as models could potentially be
-loaded that are not in the kbase namespace. Note then that in this case everything, including expression data
-and the fba model must be in the same namespace. NOTE: this data object should be migrated to the Regulation
-service, and simply imported here.
+imported here. NOTE 2: feature_id may actually be a more general ID, as models can potentially be loaded that
+are not in the kbase namespace. In this case everything, including expression data and the fba model must be in
+the same namespace.
 
-    feature_id transcriptionFactor  - the genome feature that is the regulator
-    feature_id transcriptionTarget  - the genome feature that is the target of regulation
-    float probabilityTTonGivenTFoff - the probability that the transcriptional target is ON, given that the
-                                      transcription factor is not expressed, as defined in Candrasekarana &
-                                      Price, PNAS 2010 and used to predict cumulative effects of multiple
-                                      regulatory interactions with a single target.
-    float probabilityTTonGivenTFon - the probability that the transcriptional target is ON, given that the
-                                      transcription factor is expressed
+    feature_id TF            - the genome feature that is the regulator
+    feature_id target        - the genome feature that is the target of regulation
+    float probTTonGivenTFoff - the probability that the transcriptional target is ON, given that the
+                               transcription factor is not expressed, as defined in Candrasekarana &
+                               Price, PNAS 2010 and used to predict cumulative effects of multiple
+                               regulatory interactions with a single target.  Set to null or empty if
+                               this probability has not been calculated yet.
+    float probTTonGivenTFon  - the probability that the transcriptional target is ON, given that the
+                               transcription factor is expressed.    Set to null or empty if
+                               this probability has not been calculated yet.
 
 
 =item Definition
@@ -1452,8 +1988,8 @@ service, and simply imported here.
 
 <pre>
 a reference to a hash where the following keys are defined:
-transcriptionFactor has a value which is a feature_id
-transcriptionTarget has a value which is a feature_id
+TF has a value which is a feature_id
+target has a value which is a feature_id
 probabilityTTonGivenTFoff has a value which is a float
 probabilityTTonGivenTFon has a value which is a float
 
@@ -1464,8 +2000,8 @@ probabilityTTonGivenTFon has a value which is a float
 =begin text
 
 a reference to a hash where the following keys are defined:
-transcriptionFactor has a value which is a feature_id
-transcriptionTarget has a value which is a feature_id
+TF has a value which is a feature_id
+target has a value which is a feature_id
 probabilityTTonGivenTFoff has a value which is a float
 probabilityTTonGivenTFon has a value which is a float
 

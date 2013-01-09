@@ -16,7 +16,7 @@ my $workspace_name="workspace_1";
 my $token = Bio::KBase::AuthToken->new(user_id => $user_id, password => $password);
 
 #boot up a workspace client
-my $workspace_url = 'http://140.221.92.231/services/workspaceService/';
+my $workspace_url = 'http://bio-data-1.mcs.anl.gov/services/fba_gapfill';
 my $ws = Bio::KBase::workspaceService::Client->new($workspace_url);
 
 # view what is in the workspace
@@ -28,7 +28,7 @@ my $workspace_meta = $ws->get_workspacemeta($get_workspacemeta_params);
 print 'Workspace Meta Data: \n'.Dumper($workspace_meta)."\n";
 
 # try to get a boolean gene expression data in the workspace
-my $expression_collection_id = '58FB832C-455F-11E2-917E-B6D34D1A8A4B';
+my $expression_collection_id = '85A0475C-592B-11E2-974C-06A87CBB0AD3';
 my $get_object_params = {
     id => $expression_collection_id,
     type => "Unspecified",

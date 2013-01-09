@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 4;
+use Test::More tests => 5;
 use Data::Dumper;
 use Test::More;
 
@@ -24,7 +24,7 @@ my $token = Bio::KBase::AuthToken->new(user_id => $user_id, password => $passwor
 
 #create a workspace if it doesn't exist already (set flag to 1 to create workspace)
 my $create_workspace = 0;
-my $workspace_url = 'http://140.221.92.231/services/workspaceService/';
+my $workspace_url = 'http://bio-data-1.mcs.anl.gov/services/fba_gapfill';
 if($create_workspace==1) {
     my $ws = Bio::KBase::workspaceService::Client->new($workspace_url);
     my $create_workspace_params = {
@@ -38,21 +38,50 @@ if($create_workspace==1) {
 }
 
 
+
+my $status;
 my $prom = Bio::KBase::PROM::Client->new("http://localhost:7060", user_id=>$user_id, password=>$password);
 ok(defined($prom),"instantiating PROM client");
 
-my ($status, $expression_data_collection_id) = $prom->retrieve_expression_data("kb|g.0",$workspace_name, $token->token());
+# test of regulatory network data creation
+#my $regulatory_network_id;
+#($status, $regulatory_network_id) = $prom->get_regulatory_network_by_genome("kb|g.20848",$workspace_name, $token->token());
+#ok($status,"running the method returns something");
+#print "STATUS: \n$status\n";
+#print "RETURNED ID: $regulatory_network_id\n";
+#exit;
 
-ok($status,"running the method returns something");
+
+# test of expression data creation
+#my $expression_data_collection_id;
+#($status, $expression_data_collection_id) = $prom->retrieve_expression_data("kb|g.0",$workspace_name, $token->token());
+#ok($status,"running the method returns something");
+#print "STATUS: \n$status\n";
+#print "RETURNED ID: $expression_data_collection_id\n";
+#exit;
+
+
+# test migration of regulatory network namespace
+my $new_reg_network_name;
+my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3";
+my $map = {'kb|g.0.cds.0'=>'kb|g.12.cds.0'};
+($status, $new_reg_network_name) = $prom->change_regulatory_network_namespace($reg_network_id,$map,$workspace_name, $token->token());
 
 print "STATUS: \n$status\n";
-print "RETURNED ID: $expression_data_collection_id\n";
-
-
-die 1;
+print "RETURNED ID: $new_reg_network_name\n";
 
 
 
+# put it all together
+my $prom_constraints_id;
+my $expression_data_collection_id = "85A0475C-592B-11E2-974C-06A87CBB0AD3";
+my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3";
+($status, $prom_constraints_id) = $prom->create_prom_constraints($expression_data_collection_id,$reg_network_id,$workspace_name, $token->token());
+
+print "STATUS: \n$status\n";
+print "RETURNED ID: $prom_constraints_id\n";
+
+exit;
 
 
 
