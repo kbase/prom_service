@@ -28,7 +28,7 @@ my $workspace_meta = $ws->get_workspacemeta($get_workspacemeta_params);
 print 'Workspace Meta Data: \n'.Dumper($workspace_meta)."\n";
 
 # try to get a boolean gene expression data in the workspace
-my $expression_collection_id = '85A0475C-592B-11E2-974C-06A87CBB0AD3';
+my $expression_collection_id = 'E19C6662-5B7E-11E2-A52E-A3E9BDAD6664';
 my $get_object_params = {
     id => $expression_collection_id,
     type => "Unspecified",
@@ -38,8 +38,16 @@ my $get_object_params = {
 my $object = $ws->get_object($get_object_params);
 print 'Collection: '.Dumper($object)."\n";
 
-
-
-
+# try to get regulatory network from the workspace
+#my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3"; #reg network for 20848
+my $reg_network_id = "129A7B6A-5B8D-11E2-B9FB-82EFBDAD6664"; #dummy network
+$get_object_params = {
+    id => $reg_network_id,
+    type => "Unspecified",
+    workspace => $workspace_name,
+    auth => $token->token,
+};
+$object = $ws->get_object($get_object_params);
+print 'Collection: '.Dumper($object)."\n";
 
 

@@ -3,3 +3,4 @@ erdb_service
 regprecise
 workspace_service
 auth_service
+kb_model_seed

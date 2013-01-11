@@ -16,7 +16,7 @@ use_ok("Bio::KBase::AuthToken");
 #
 
 
-# AUTH INFORMATION
+# AUTH INFORMATION FOR TESTING
 my $user_id='kbasepromuser1';
 my $password='open4me!';
 my $workspace_name="workspace_1";
@@ -38,7 +38,6 @@ if($create_workspace==1) {
 }
 
 
-
 my $status;
 my $prom = Bio::KBase::PROM::Client->new("http://localhost:7060", user_id=>$user_id, password=>$password);
 ok(defined($prom),"instantiating PROM client");
@@ -51,10 +50,9 @@ ok(defined($prom),"instantiating PROM client");
 #print "RETURNED ID: $regulatory_network_id\n";
 #exit;
 
-
 # test of expression data creation
 #my $expression_data_collection_id;
-#($status, $expression_data_collection_id) = $prom->retrieve_expression_data("kb|g.0",$workspace_name, $token->token());
+#($status, $expression_data_collection_id) = $prom->get_expression_data_by_genome("kb|g.372",$workspace_name, $token->token());
 #ok($status,"running the method returns something");
 #print "STATUS: \n$status\n";
 #print "RETURNED ID: $expression_data_collection_id\n";
@@ -64,17 +62,17 @@ ok(defined($prom),"instantiating PROM client");
 # test migration of regulatory network namespace
 my $new_reg_network_name;
 my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3";
-my $map = {'kb|g.0.cds.0'=>'kb|g.12.cds.0'};
+#kb|g.20848.CDS.3329	kb|g.20848.CDS.440
+my $map = {'kb|g.20848.CDS.3329'=>'gene1','kb|g.20848.CDS.440'=>'gene2' };
 ($status, $new_reg_network_name) = $prom->change_regulatory_network_namespace($reg_network_id,$map,$workspace_name, $token->token());
-
 print "STATUS: \n$status\n";
 print "RETURNED ID: $new_reg_network_name\n";
-
+exit;
 
 
 # put it all together
 my $prom_constraints_id;
-my $expression_data_collection_id = "85A0475C-592B-11E2-974C-06A87CBB0AD3";
+my $expression_data_collection_id = "D459353C-5B85-11E2-89F6-5AEABDAD6664";
 my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3";
 ($status, $prom_constraints_id) = $prom->create_prom_constraints($expression_data_collection_id,$reg_network_id,$workspace_name, $token->token());
 

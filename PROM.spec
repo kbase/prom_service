@@ -33,21 +33,15 @@ module PROM
     
     /* The name of a workspace */
     typedef string workspace_name;
-    
-    /* A workspace ID for an fba model */
-    typedef string fbamodel_id;
 
     /* A workspace ID for a gene expression data object. */
     typedef string boolean_gene_expression_data_id;
 
-    /* A workspace id for a set of expression data on/off calls needed by PROM */
+    /* A workspace id for a set of expression data on/off calls */
     typedef string expression_data_collection_id;
     
-    /* A workspace ID for a regulatory network object, needed by PROM */
+    /* A workspace ID for a regulatory network object */
     typedef string regulatory_network_id;
-    
-    /* The ID of a regulome model as registered with the Regulation service */
-    typedef string regulomeModelId;
     
     /* Status message used by this service to provide information on the final status of a step  */
     typedef string status;
@@ -167,49 +161,49 @@ module PROM
     /* * METHODS * */
     /* ************************************************************************************* */
 
-
-    /* DEPRICATED ALREADY!:
-    This method automatically constructs, if possible, an FBA model in the authenticated user's workspace that
-    includes PROM constraints.  Regulatory interactions are retrieved from the regulation service, and exression
-    data is compiled directly from the CDM.  A preconstructed FBA model cooresponding to the genome is also
-    retrieved from the CDM if the other data exists.  This method returns a status message that begins with either
-    'success' or 'failure', followed by potentially a long set of log or error messages.  If the method was
-    successful, then a valid fbamodel_id is returned and which can be used to reference the new model object. */
-    funcdef create_from_genome(genome_id genome) returns (status,fbamodel_id);
-    
-    
-    
     /*
-    This method takes a given genome id, and retrieves experimental expression data (if any) for the genome from
-    the CDM.  It then uses this expression data to construct an expression_data_collection in the current workspace.
-    Note that this method may take a long time to complete if there is a lot of CDM data for this genome.  Also note
-    that the current implementation relies on on/off calls being stored in the CDM (correct as of 1/2013).  This will
-    almost certainly change, but that means that the on/off calling algorithm must be added to this method, or
-    better yet implemented in the expression data service.
+    This method fetches all gene expression data available in the CDS that is associated with the given genome id.  It then
+    constructs an expression_data_collection object in the specified workspace.  The method returns the ID of the expression
+    data collection in the workspace, along with a status message that provides details on what was retrieved and if anything
+    failed.  If the method does fail, or if there is no data for the given genome, then no expression data collection is
+    created and no ID is returned.
     
-    should use type compiler auth, but for now we just use a bearer token so we can pass it to workspace services:
-    funcdef retrieve_expression_data(genome_id id, workspace_name workspace_name) returns (status,expression_data_collection_id) authentication required;
+    Note 1: this method currently can take a long time to complete if there are many expression data sets in the CDS
+    Note 2: the current implementation relies on on/off calls stored in the CDM (correct as of 1/2013).  This will almost
+    certainly change, at which point logic for making on/off calls will be required as input
+    Note 3: this method should be migrated to the expression service, which currently does not exist
+    Note 4: this method should use the type compiler auth, but for simplicity  we now just pass an auth token directly.
     */
-    funcdef retrieve_expression_data(genome_id id, workspace_name workspace_name, auth_token token) returns (status,expression_data_collection_id);
-
-    
-    /* ********************  THIS IS WHAT THE FINAL WORKING FUNCTIONS WILL LOOK LIKE:: */
-    
     funcdef get_expression_data_by_genome(genome_id genome_id, workspace_name workspace_name, auth_token token) returns (status status,expression_data_collection_id expression_data_collection_id);
+    
+    
     /* funcdef create_expression_data_collection(workspace_name) returns (status, expression_data_collection_id); */
     /* funcdef add_expression_data_to_collection(workspace_name, list<expression_data>); */
     /* funcdef merge_expression_data_collections(list <expression_data_collection_id> collections) returns (status,expression_data_collection_id); */
     
     
+    funcdef change_expression_data_namespace(expression_data_collection_id expression_data_collection_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, expression_data_collection_id expression_data_collection_id);
+    
+    
+    
+    /*
+    This method fetches a regulatory network from the regulation service that is associated with the given genome id.  If there
+    are multiple regulome models available for the given genome, then the model with the most regulons is selected.  The method
+    then constructs a regulatory network object in the specified workspace.  The method returns the ID of the regulatory network
+    in the workspace, along with a status message that provides details on what was retrieved and if anything failed.  If the
+    method does fail, or if there is no regulome for the given genome, then no regulatory network ID is returned.
+    
+    Note 1: this method should be migrated to the regulation service
+    Note 2: this method should use the type compiler auth, but for simplicity  we now just pass an auth token directly.
+    */
     funcdef get_regulatory_network_by_genome(genome_id genome_id, workspace_name workspace_name, auth_token token) returns (status status, regulatory_network_id regulatory_network_id);
+    
     /* funcdef add_regulatory_network(workspace_name, regulatory_network); */
     
     
+    /*
+    Maps the regulatory network stored 
     funcdef change_regulatory_network_namespace(regulatory_network_id regulatory_network_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, regulatory_network_id new_regulatory_network_id);
-    
-    
-    
-    /* *************************************************** */
     
     /*
     Once you have loaded gene expression data and a regulatory network for a specific genome, then
@@ -239,12 +233,12 @@ module PROM
     /* This method retrieves regulatory network data from the KBase Regulation service based on the Regulome model ID.  This
     model must be defined for the same exact genome with which you are constructing the FBA model.  If a model does not exist for
     your genome, the you have to build it yourself using the Regulation service.  See the Regulation service for more information on
-    how to retrieve a list of models for your genome, and how to propagate existing models to build a new model for your genome. */
-    funcdef retrieve_regulatory_network_data(regulomeModelId id) returns (status,regulatory_network_id);
+    how to retrieve a list of models for your genome, and how to propagate existing models to build a new model for your genome. 
+    funcdef retrieve_regulatory_network_data(regulomeModelId id) returns (status,regulatory_network_id);*/
     
     /* Given your own regulatory network for a given genome, load it into the workspace so that it can be used to construct a PROM
-    model. Make sure your IDs for each gene are consistant with your FBA model and your gene expression data! */
-    funcdef load_regulatory_network_data(regulomeModelId id) returns (status,regulatory_network_id);
+    model. Make sure your IDs for each gene are consistant with your FBA model and your gene expression data! 
+    funcdef load_regulatory_network_data(regulomeModelId id) returns (status,regulatory_network_id);*/
     
     
     

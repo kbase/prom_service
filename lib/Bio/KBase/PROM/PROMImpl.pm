@@ -49,6 +49,7 @@ sub new
     my $c = Config::Simple->new();
     $c->read("deploy.cfg");
     
+    # connect to various kbase services that we need
     my $erdb_url = $c->param("prom_service.erdb");
     if($erdb_url) {
 	$self->{'erdb'} = Bio::KBase::ERDB_Service::Client->new($erdb_url);
@@ -66,13 +67,13 @@ sub new
     }
     my $workspace_url = $c->param("prom_service.workspace");
     if($workspace_url) {
-	# may have to reconnect at each function call!
 	$self->{'workspace'} = Bio::KBase::workspaceService::Client->new($workspace_url);
 	print "Connecting Workspace Service client to server : $workspace_url\n";
     } else {
 	die "ERROR STARTING SERVICE! prom_config.ini file does not exist, or does not contain 'service-urls.workspace' variable.\n";
     }
     
+    # find some scratch space we can use when processing data
     my $scratch_space = $c->param("prom_service.scratch-space");
     if($scratch_space) {
 	$self->{'scratch_space'} = $scratch_space;
@@ -93,409 +94,6 @@ sub new
 }
 
 =head1 METHODS
-
-
-
-=head2 create_from_genome
-
-  $return_1, $return_2 = $obj->create_from_genome($genome)
-
-=over 4
-
-=item Parameter and return types
-
-=begin html
-
-<pre>
-$genome is a genome_id
-$return_1 is a status
-$return_2 is a fbamodel_id
-genome_id is a kbase_id
-kbase_id is a string
-status is a string
-fbamodel_id is a string
-
-</pre>
-
-=end html
-
-=begin text
-
-$genome is a genome_id
-$return_1 is a status
-$return_2 is a fbamodel_id
-genome_id is a kbase_id
-kbase_id is a string
-status is a string
-fbamodel_id is a string
-
-
-=end text
-
-
-
-=item Description
-
-DEPRICATED ALREADY!:
-This method automatically constructs, if possible, an FBA model in the authenticated user's workspace that
-includes PROM constraints.  Regulatory interactions are retrieved from the regulation service, and exression
-data is compiled directly from the CDM.  A preconstructed FBA model cooresponding to the genome is also
-retrieved from the CDM if the other data exists.  This method returns a status message that begins with either
-'success' or 'failure', followed by potentially a long set of log or error messages.  If the method was
-successful, then a valid fbamodel_id is returned and which can be used to reference the new model object.
-
-=back
-
-=cut
-
-sub create_from_genome
-{
-    my $self = shift;
-    my($genome) = @_;
-
-    my @_bad_arguments;
-    (!ref($genome)) or push(@_bad_arguments, "Invalid type for argument \"genome\" (value was \"$genome\")");
-    if (@_bad_arguments) {
-	my $msg = "Invalid arguments passed to create_from_genome:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'create_from_genome');
-    }
-
-    my $ctx = $Bio::KBase::PROM::Service::CallContext;
-    my($return_1, $return_2);
-    #BEGIN create_from_genome
-    my $erdb = $self->{'erdb'};
-    my $status = "";
-    $return_2 = ""; my $fbamodel_id="";
-    
-    # 1) GRAB REGULATORY NETWORK DATA
-    $status .= "  -> querying the KBase Regulation Service for a regulatory network for genome: ".$genome."\n";
-    
-    
-    
-    # 2) GRAB EXPRESSION DATA FROM THE CDM (currently has on/off calls! but this will likely change...)
-    # 
-    $status .= "  -> searching the KBase Central Data Store for expression data for genome: ".$genome."\n";
-    my $objectNames = 'HadResultsProducedBy ProbeSet HasResultsIn';
-    my $filterClause = 'HadResultsProducedBy(from-link)=?';
-    my $parameters = [$genome];
-    my $fields = 'HasResultsIn(to-link)';
-    my $count = 0; #as per ERDB doc, setting to zero returns all results
-    my @experiment_list = @{$erdb->GetAll($objectNames, $filterClause, $parameters, $fields, $count)};
-    
-    if(scalar @experiment_list >0) {
-	$status = $status."  -> found ".scalar(@experiment_list)." experiments for this genome.\n";
-	
-	# get the actual on/off calls (note, there is too much data to do this all at once)
-	$objectNames = 'IndicatesSignalFor';
-	$parameters = [];
-	my $exp_counter = 0;
-	foreach my $exp (@experiment_list) {
-	    $exp_counter ++; if ($exp_counter>5) { last; }
-	    print "  retrieving expermiment: ".${$exp}[0]."\n";
-	    $filterClause = "IndicatesSignalFor(from-link)=?";
-	    $fields = 'IndicatesSignalFor(from-link) IndicatesSignalFor(to-link) IndicatesSignalFor(level)';
-	    my @expression_data = @{$erdb->GetAll($objectNames, $filterClause, [${$exp}[0]], $fields, $count)};
-	    if(scalar @expression_data >0) {
-		$status = $status."  -> found experiment '${$exp}[0]' with ".scalar(@expression_data)." gene on/off calls.\n";
-		
-		
-		
-		#if first 
-		
-	    } else {
-		$status .= "warning - no gene expression data found for experiment '${$exp}[0]'.\n";
-	    }
-	}
-	
-    
-    } else {
-	$status = "failure - no gene expression experiments found for the specified genome.\n".$status;
-    }
-
-    
-    
-    
-    
-    
-    # 3) USE MODEL SEED TO CREATE AN FBA MODEL OBJECT
-    
-    
-    
-    # 4) EXPORT THE MODEL TO THE WORKSPACE
-    
-    
-    
-    
-    #print Dumper(@experiment_list)."\n";
-    
-    $return_1 = $status;
-    $return_2 = $fbamodel_id;
-    
-    #END create_from_genome
-    my @_bad_returns;
-    (!ref($return_1)) or push(@_bad_returns, "Invalid type for return variable \"return_1\" (value was \"$return_1\")");
-    (!ref($return_2)) or push(@_bad_returns, "Invalid type for return variable \"return_2\" (value was \"$return_2\")");
-    if (@_bad_returns) {
-	my $msg = "Invalid returns passed to create_from_genome:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'create_from_genome');
-    }
-    return($return_1, $return_2);
-}
-
-
-
-
-=head2 retrieve_expression_data
-
-  $return_1, $return_2 = $obj->retrieve_expression_data($id, $workspace_name, $token)
-
-=over 4
-
-=item Parameter and return types
-
-=begin html
-
-<pre>
-$id is a genome_id
-$workspace_name is a workspace_name
-$token is an auth_token
-$return_1 is a status
-$return_2 is an expression_data_collection_id
-genome_id is a kbase_id
-kbase_id is a string
-workspace_name is a string
-auth_token is a string
-status is a string
-expression_data_collection_id is a string
-
-</pre>
-
-=end html
-
-=begin text
-
-$id is a genome_id
-$workspace_name is a workspace_name
-$token is an auth_token
-$return_1 is a status
-$return_2 is an expression_data_collection_id
-genome_id is a kbase_id
-kbase_id is a string
-workspace_name is a string
-auth_token is a string
-status is a string
-expression_data_collection_id is a string
-
-
-=end text
-
-
-
-=item Description
-
-This method takes a given genome id, and retrieves experimental expression data (if any) for the genome from
-the CDM.  It then uses this expression data to construct an expression_data_collection in the current workspace.
-Note that this method may take a long time to complete if there is a lot of CDM data for this genome.  Also note
-that the current implementation relies on on/off calls being stored in the CDM (correct as of 1/2013).  This will
-almost certainly change, but that means that the on/off calling algorithm must be added to this method, or
-better yet implemented in the expression data service.
-
-should use type compiler auth, but for now we just use a bearer token so we can pass it to workspace services:
-funcdef retrieve_expression_data(genome_id id, workspace_name workspace_name) returns (status,expression_data_collection_id) authentication required;
-
-=back
-
-=cut
-
-sub retrieve_expression_data
-{
-    my $self = shift;
-    my($id, $workspace_name, $token) = @_;
-
-    my @_bad_arguments;
-    (!ref($id)) or push(@_bad_arguments, "Invalid type for argument \"id\" (value was \"$id\")");
-    (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
-    (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
-    if (@_bad_arguments) {
-	my $msg = "Invalid arguments passed to retrieve_expression_data:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'retrieve_expression_data');
-    }
-
-    my $ctx = $Bio::KBase::PROM::Service::CallContext;
-    my($return_1, $return_2);
-    #BEGIN retrieve_expression_data
-    
-    # setup the return variables
-    my $status = ""; $return_1 = ""; 
-    my $expression_data_collection_id=""; $return_2 = ""; 
-    
-    # make sure we are authentiated (for now auth token is passed directly)
-    #if ($ctx->authenticated) {
-        #$status .= "  -> user named ".$ctx->user_id." has been authenticated.\n";
-	
-	#check that the workspace is valid (note: can we get the token directly from ctx somehow?!?)
-	my $ws = $self->{'workspace'};
-	my $existing_workspaces = $ws->list_workspaces({auth=>$token});
-	print "\n--".Dumper($existing_workspaces)."--\n";
-	
-	# grab the erdb service
-	my $erdb = $self->{'erdb'};
-
-	# GRAB EXPRESSION DATA FROM THE CDM (currently has on/off calls! but this will likely change...)
-	$status .= "  -> searching the KBase Central Data Store for expression data for genome: ".$id."\n";
-	my $objectNames = 'HadResultsProducedBy ProbeSet HasResultsIn';
-	my $filterClause = 'HadResultsProducedBy(from-link)=?';
-	my $parameters = [$id];
-	my $fields = 'HasResultsIn(to-link)';
-	my $count = 0; #as per ERDB doc, setting to zero returns all results
-	my @experiment_list = @{$erdb->GetAll($objectNames, $filterClause, $parameters, $fields, $count)};
-	
-	my @expression_data_uuid_list = ();
-	
-	if(scalar @experiment_list >0) {
-	    $status = $status."  -> found ".scalar(@experiment_list)." experiments for this genome.\n";
-	    
-	    # get the actual on/off calls (note, there is too much data to do this all at once)
-	    $objectNames = 'IndicatesSignalFor';
-	    $parameters = [];
-	    
-	    # append each experiment to the end of a temporary file
-	    #$File::Temp::KEEP_ALL = 1; # FOR DEBUGGING ONLY, WE DON't WANT TO KEEP ALL FILES IN PRODUCTION
-	    #my $tmp_file = File::Temp->new( TEMPLATE => 'promXXXXXX',
-	    #		    DIR => $self->{'scratch_space'},
-	    #		    SUFFIX => '.tmp');
-	    my $exp_counter = 0;
-	    foreach my $exp (@experiment_list) {
-		$exp_counter ++; if ($exp_counter>5) { last; }
-		print Dumper(${$exp}[0])."\n";
-		$filterClause = "IndicatesSignalFor(from-link)=?";
-		$fields = 'IndicatesSignalFor(from-link) IndicatesSignalFor(to-link) IndicatesSignalFor(level)';
-		my @expression_data = @{$erdb->GetAll($objectNames, $filterClause, [${$exp}[0]], $fields, $count)};
-		if(scalar @expression_data >0) {
-		    $status = $status."  -> found experiment '${$exp}[0]' with ".scalar(@expression_data)." gene on/off calls.\n";
-		    
-		    # drop top level list and save as a data structure
-		    my %on_off_calls;
-		    foreach my $data (@expression_data) {
-			$on_off_calls{${$data}[1]} = ${$data}[2]; 
-		    }
-		
-		    # create a data structure to store the experimental data
-		    my $data_uuid = $self->{'uuid_generator'}->create_str();
-		    push @expression_data_uuid_list, $data_uuid;
-		    print "uuid = ".$data_uuid."\n";
-		    my $exp_data = {
-			id => $data_uuid,
-			on_off_call => \%on_off_calls,
-			expression_data_source => 'KBase',
-			expression_data_source_id => ${$exp}[0],
-		    };
-		    
-		    # convert it to JSON
-		    my $encoded_json_exp_data = encode_json $exp_data;
-		    
-		    # save this experiment to the workspace
-		    my $workspace_save_obj_params = {
-			id => $data_uuid,
-			type => "Unspecified",
-			data => $encoded_json_exp_data,
-			workspace => $workspace_name,
-			command => "PROM::retrieve_expression_data",
-			auth => $token,
-			json => 1,
-			compressed => 0,
-			retrieveFromURL => 0,
-		    };
-		    my $object_metadata = $ws->save_object($workspace_save_obj_params);
-		    print Dumper($object_metadata)."\n";
-		    
-		    $status = $status."  -> saving data for experiment '${$exp}[0]' to your workspace with ID:$data_uuid\n";
-		    
-		    #print "DATA:\n".$encoded_json_data."\n";
-		    
-		    # dump the data to a file, making sure to sort the ids so features are in the correct order
-		    #if($exp_counter==1) {
-		    #   print $tmp_file "Experiment";
-		    #   foreach my $fid (sort keys %on_off_calls) {
-		    #       print $tmp_file "\t".$fid;
-		    #}
-		    #}
-		    #print $tmp_file "\n";
-		    #print $tmp_file ${$exp}[0]; #dump experiment name
-		    #foreach my $fid (sort keys %on_off_calls) {
-		    #	print $tmp_file "\t".$on_off_calls{$fid};
-		    #}
-		    #print $tmp_file "\n";
-		} else {
-		    $status .= "  -> warning - no gene expression data found for experiment '${$exp}[0]'.\n";
-		}
-	    }
-	    
-	    #################### TODO #######################
-	    # now we save the collection to the workspace
-	    
-	    print Dumper(@expression_data_uuid_list)."\n";
-	    
-	    # create UUID for the collection
-	    $expression_data_collection_id = $self->{'uuid_generator'}->create_str();
-	    print "collection uuid = ".$expression_data_collection_id."\n";
-	    
-	    # create the collection and encode it as JSON
-	    my $exp_data_collection = {
-		id => $expression_data_collection_id,
-		expression_data => \@expression_data_uuid_list,
-	    };
-	    my $encoded_json_data_collection = encode_json $exp_data_collection;
-	    print "DATA:\n".$encoded_json_data_collection."\n";
-	    
-	    # save the collection to the workspace
-	    my $workspace_save_obj_params = {
-		id => $expression_data_collection_id,
-		type => "Unspecified",
-		data => $encoded_json_data_collection,
-		workspace => $workspace_name,
-		command => "PROM::retrieve_expression_data",
-		auth => $token,
-		json => 1,
-		compressed => 0,
-		retrieveFromURL => 0,
-	    };
-	    my $object_metadata = $ws->save_object($workspace_save_obj_params);
-	    print Dumper($object_metadata)."\n";
-	    
-	    $status = $status."  -> saving data for the collection of experiments with ID:$expression_data_collection_id\n";
-	    $status = "SUCCESS.\n".$status;
-	    
-	    
-	} else {
-	    $status = "FAILURE - no gene expression experiments found for the specified genome.\n".$status;
-	}
-    
-    #}
-    #else {
-    # 	$status = "failure - user and password combination could not be authenticated.\n".$status;
-    #}
-    
-    
-    # save the results
-    $return_1 = $status;
-    $return_2 = $expression_data_collection_id;
-    
-    #END retrieve_expression_data
-    my @_bad_returns;
-    (!ref($return_1)) or push(@_bad_returns, "Invalid type for return variable \"return_1\" (value was \"$return_1\")");
-    (!ref($return_2)) or push(@_bad_returns, "Invalid type for return variable \"return_2\" (value was \"$return_2\")");
-    if (@_bad_returns) {
-	my $msg = "Invalid returns passed to retrieve_expression_data:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'retrieve_expression_data');
-    }
-    return($return_1, $return_2);
-}
-
 
 
 
@@ -547,7 +145,17 @@ expression_data_collection_id is a string
 
 =item Description
 
-*******************  THIS IS WHAT THE FINAL WORKING FUNCTIONS WILL LOOK LIKE::
+This method fetches all gene expression data available in the CDS that is associated with the given genome id.  It then
+constructs an expression_data_collection object in the specified workspace.  The method returns the ID of the expression
+data collection in the workspace, along with a status message that provides details on what was retrieved and if anything
+failed.  If the method does fail, or if there is no data for the given genome, then no expression data collection is
+created and no ID is returned.
+
+Note 1: this method currently can take a long time to complete if there are many expression data sets in the CDS
+Note 2: the current implementation relies on on/off calls stored in the CDM (correct as of 1/2013).  This will almost
+certainly change, at which point logic for making on/off calls will be required as input
+Note 3: this method should be migrated to the expression service, which currently does not exist
+Note 4: this method should use the type compiler auth, but for simplicity  we now just pass an auth token directly.
 
 =back
 
@@ -571,6 +179,133 @@ sub get_expression_data_by_genome
     my $ctx = $Bio::KBase::PROM::Service::CallContext;
     my($status, $expression_data_collection_id);
     #BEGIN get_expression_data_by_genome
+    
+    
+    # setup the return variables
+    $status = "";
+    $expression_data_collection_id="";
+    
+    # make sure we are authentiated (for now auth token is passed directly)
+    #if ($ctx->authenticated) {
+        #$status .= "  -> user named ".$ctx->user_id." has been authenticated.\n";
+	
+	#check that the workspace is valid (note: can we get the token directly from ctx somehow?!?)
+	# note: this does not actually do any error checking right now.
+	my $ws = $self->{'workspace'};
+	
+	# grab the erdb service
+	my $erdb = $self->{'erdb'};
+
+	# GRAB EXPRESSION DATA FROM THE CDM (currently has on/off calls! but this will likely change...)
+	$status .= "  -> searching the KBase Central Data Store for expression data for genome: ".$genome_id."\n";
+	my $objectNames = 'HadResultsProducedBy ProbeSet HasResultsIn';
+	my $filterClause = 'HadResultsProducedBy(from-link)=?';
+	my $parameters = [$genome_id];
+	my $fields = 'HasResultsIn(to-link)';
+	my $count = 0; #as per ERDB doc, setting to zero returns all results
+	my @experiment_list = @{$erdb->GetAll($objectNames, $filterClause, $parameters, $fields, $count)};
+	
+	# check if we found anything for this genome
+	my @expression_data_uuid_list = ();
+	if(scalar @experiment_list >0) {
+	    $status = $status."  -> found ".scalar(@experiment_list)." experiments for this genome.\n";
+	    
+	    # get the actual on/off calls (note, there is too much data to do this all at once)
+	    $objectNames = 'IndicatesSignalFor';
+	    $parameters = [];
+	    
+	    # go through each experiment that was found
+	    my $exp_counter = 0;
+	    foreach my $exp (@experiment_list) {
+		$exp_counter ++; if ($exp_counter>5) { last; }
+		print Dumper(${$exp}[0])."\n";
+		$filterClause = "IndicatesSignalFor(from-link)=?";
+		$fields = 'IndicatesSignalFor(from-link) IndicatesSignalFor(to-link) IndicatesSignalFor(level)';
+		my @expression_data = @{$erdb->GetAll($objectNames, $filterClause, [${$exp}[0]], $fields, $count)};
+		if(scalar @expression_data >0) {
+		    $status = $status."  -> found experiment '${$exp}[0]' with ".scalar(@expression_data)." gene on/off calls.\n";
+		    
+		    # drop top level list and save as a data structure
+		    my %on_off_calls;
+		    foreach my $data (@expression_data) {
+			$on_off_calls{${$data}[1]} = ${$data}[2]; 
+		    }
+		
+		    # create a data structure to store the experimental data
+		    my $data_uuid = $self->{'uuid_generator'}->create_str();
+		    push @expression_data_uuid_list, $data_uuid;
+		    print "uuid = ".$data_uuid."\n";
+		    my $exp_data = {
+			id => $data_uuid,
+			on_off_call => \%on_off_calls,
+			expression_data_source => 'KBase',
+			expression_data_source_id => ${$exp}[0],
+		    };
+		    
+		    # convert it to JSON
+		    my $encoded_json_exp_data = encode_json $exp_data;
+		    
+		    # save this experiment to the workspace
+		    my $workspace_save_obj_params = {
+			id => $data_uuid,
+			type => "Unspecified",
+			data => $encoded_json_exp_data,
+			workspace => $workspace_name,
+			command => "PROM::retrieve_expression_data",
+			auth => $token,
+			json => 1,
+			compressed => 0,
+			retrieveFromURL => 0,
+		    };
+		    my $object_metadata = $ws->save_object($workspace_save_obj_params);
+		    $status = $status."  -> saving data for experiment '${$exp}[0]' to your workspace with ID:$data_uuid\n";
+		    print Dumper($object_metadata)."\n";
+		    #print "DATA:\n".$encoded_json_data."\n";
+		} else {
+		    $status .= "  -> warning - no gene expression data found for experiment '${$exp}[0]'.\n";
+		}
+	    }
+	    #print Dumper(@expression_data_uuid_list)."\n"; #print the list of expression data found
+	    
+	    # now we save the collection to the workspace
+	    $expression_data_collection_id = $self->{'uuid_generator'}->create_str();
+	    #print "collection uuid = ".$expression_data_collection_id."\n";
+	    
+	    # create the collection and encode it as JSON
+	    my $exp_data_collection = {
+		id => $expression_data_collection_id,
+		expression_data => \@expression_data_uuid_list,
+	    };
+	    my $encoded_json_data_collection = encode_json $exp_data_collection;
+	    
+	    # save the collection to the workspace
+	    my $workspace_save_obj_params = {
+		id => $expression_data_collection_id,
+		type => "Unspecified",
+		data => $encoded_json_data_collection,
+		workspace => $workspace_name,
+		command => "PROM::retrieve_expression_data",
+		auth => $token,
+		json => 1,
+		compressed => 0,
+		retrieveFromURL => 0,
+	    };
+	    #print "DATA:\n".$encoded_json_data_collection."\n";
+	    my $object_metadata = $ws->save_object($workspace_save_obj_params);
+	    print Dumper($object_metadata)."\n";
+	    
+	    $status = $status."  -> saving data for the collection of experiments with ID:$expression_data_collection_id\n";
+	    $status = "SUCCESS.\n".$status;
+	    
+	} else {
+	    $status = "FAILURE - no gene expression experiments found for the specified genome.\n".$status;
+	}
+    
+    #}
+    #else {
+    # 	$status = "failure - user and password combination could not be authenticated.\n".$status;
+    #}
+    
     #END get_expression_data_by_genome
     my @_bad_returns;
     (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
@@ -579,6 +314,92 @@ sub get_expression_data_by_genome
 	my $msg = "Invalid returns passed to get_expression_data_by_genome:\n" . join("", map { "\t$_\n" } @_bad_returns);
 	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
 							       method_name => 'get_expression_data_by_genome');
+    }
+    return($status, $expression_data_collection_id);
+}
+
+
+
+
+=head2 change_expression_data_namespace
+
+  $status, $expression_data_collection_id = $obj->change_expression_data_namespace($expression_data_collection_id, $new_feature_names, $workspace_name, $token)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$expression_data_collection_id is an expression_data_collection_id
+$new_feature_names is a reference to a hash where the key is a string and the value is a string
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
+expression_data_collection_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$expression_data_collection_id is an expression_data_collection_id
+$new_feature_names is a reference to a hash where the key is a string and the value is a string
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
+expression_data_collection_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+
+
+=end text
+
+
+
+=item Description
+
+funcdef merge_expression_data_collections(list <expression_data_collection_id> collections) returns (status,expression_data_collection_id);
+
+=back
+
+=cut
+
+sub change_expression_data_namespace
+{
+    my $self = shift;
+    my($expression_data_collection_id, $new_feature_names, $workspace_name, $token) = @_;
+
+    my @_bad_arguments;
+    (!ref($expression_data_collection_id)) or push(@_bad_arguments, "Invalid type for argument \"expression_data_collection_id\" (value was \"$expression_data_collection_id\")");
+    (ref($new_feature_names) eq 'HASH') or push(@_bad_arguments, "Invalid type for argument \"new_feature_names\" (value was \"$new_feature_names\")");
+    (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
+    (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to change_expression_data_namespace:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'change_expression_data_namespace');
+    }
+
+    my $ctx = $Bio::KBase::PROM::Service::CallContext;
+    my($status, $expression_data_collection_id);
+    #BEGIN change_expression_data_namespace
+    #END change_expression_data_namespace
+    my @_bad_returns;
+    (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
+    (!ref($expression_data_collection_id)) or push(@_bad_returns, "Invalid type for return variable \"expression_data_collection_id\" (value was \"$expression_data_collection_id\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to change_expression_data_namespace:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'change_expression_data_namespace');
     }
     return($status, $expression_data_collection_id);
 }
@@ -634,7 +455,14 @@ regulatory_network_id is a string
 
 =item Description
 
-funcdef merge_expression_data_collections(list <expression_data_collection_id> collections) returns (status,expression_data_collection_id);
+This method fetches a regulatory network from the regulation service that is associated with the given genome id.  If there
+are multiple regulome models available for the given genome, then the model with the most regulons is selected.  The method
+then constructs a regulatory network object in the specified workspace.  The method returns the ID of the regulatory network
+in the workspace, along with a status message that provides details on what was retrieved and if anything failed.  If the
+method does fail, or if there is no regulome for the given genome, then no regulatory network ID is returned.
+
+Note 1: this method should be migrated to the regulation service
+Note 2: this method should use the type compiler auth, but for simplicity  we now just pass an auth token directly.
 
 =back
 
@@ -776,158 +604,6 @@ sub get_regulatory_network_by_genome
 
 
 
-=head2 change_regulatory_network_namespace
-
-  $status, $new_regulatory_network_id = $obj->change_regulatory_network_namespace($regulatory_network_id, $new_feature_names, $workspace_name, $token)
-
-=over 4
-
-=item Parameter and return types
-
-=begin html
-
-<pre>
-$regulatory_network_id is a regulatory_network_id
-$new_feature_names is a reference to a hash where the key is a string and the value is a string
-$workspace_name is a workspace_name
-$token is an auth_token
-$status is a status
-$new_regulatory_network_id is a regulatory_network_id
-regulatory_network_id is a string
-workspace_name is a string
-auth_token is a string
-status is a string
-
-</pre>
-
-=end html
-
-=begin text
-
-$regulatory_network_id is a regulatory_network_id
-$new_feature_names is a reference to a hash where the key is a string and the value is a string
-$workspace_name is a workspace_name
-$token is an auth_token
-$status is a status
-$new_regulatory_network_id is a regulatory_network_id
-regulatory_network_id is a string
-workspace_name is a string
-auth_token is a string
-status is a string
-
-
-=end text
-
-
-
-=item Description
-
-funcdef add_regulatory_network(workspace_name, regulatory_network);
-
-=back
-
-=cut
-
-sub change_regulatory_network_namespace
-{
-    my $self = shift;
-    my($regulatory_network_id, $new_feature_names, $workspace_name, $token) = @_;
-
-    my @_bad_arguments;
-    (!ref($regulatory_network_id)) or push(@_bad_arguments, "Invalid type for argument \"regulatory_network_id\" (value was \"$regulatory_network_id\")");
-    (ref($new_feature_names) eq 'HASH') or push(@_bad_arguments, "Invalid type for argument \"new_feature_names\" (value was \"$new_feature_names\")");
-    (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
-    (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
-    if (@_bad_arguments) {
-	my $msg = "Invalid arguments passed to change_regulatory_network_namespace:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'change_regulatory_network_namespace');
-    }
-
-    my $ctx = $Bio::KBase::PROM::Service::CallContext;
-    my($status, $new_regulatory_network_id);
-    #BEGIN change_regulatory_network_namespace
-    
-    # currently this runs out of memory!  why!?!?!?!
-#    $status = ''; $new_regulatory_network_id='';
-#    my $ws  = $self->{'workspace'};
-#    
-#     # check if the regulatory network data exists
-#    my $get_object_params = {
-#	id => $regulatory_network_id,
-#	type => "Unspecified",
-#	workspace => $workspace_name,
-#	auth => $token,
-#    };
-#    my $r_exists = $ws->has_object($get_object_params);
-#    if(!$r_exists) {
-#	$status = "FAILURE - no regulatory network data with ID $regulatory_network_id found!\n".$status;
-#    } else {
-#	# if it does exist grab the object
-#	$get_object_params->{id}=$regulatory_network_id;
-#	my $updated_version = "";
-#	my $regnet = $ws->get_object($get_object_params)->{data};
-#	my @lines = split /\n/, $regnet;
-#	foreach my $line (@lines) {
-#	    chomp $line;
-#	    my @ids = split /\t/, $line;
-#	    print $line."\n";
-#	    if( scalar(@ids) != 2 ) {
-#		$status = "ERROR - malformed line in data: $line\n".$status;
-#		last;
-#	    }
-#	    if(exists $new_feature_names->{$ids[0]}) {
-#		if(exists $new_feature_names->{$ids[1]}) {
-#		    $updated_version .= $new_feature_names->{$ids[0]}."\t".$new_feature_names->{$ids[1]}."\n";
-#		} else {
-#		    $status .= "WARNING - cannot find match for target '".$ids[0]."', skipping this interaction\n".$status;
-#		}
-#	    } else {
-#		$status .= "WARNING - cannot find match for TF '".$ids[0]."', skipping this interaction\n".$status;
-#	    }
-#	}
-#	
-#	# save a new object in the workspace
-#	if($updated_version ne '') {
-#	    
-#	    $new_regulatory_network_id = $self->{'uuid_generator'}->create_str();
-#	    
-#	    # save the collection to the workspace
-#	    my $workspace_save_obj_params = {
-#		id => $new_regulatory_network_id,
-#		type => "Unspecified",
-#		data => $updated_version,
-#		workspace => $workspace_name,
-#		command => "PROM::get_regulatory_network_by_genome",
-#		auth => $token,
-#		json => 0,
-#		compressed => 0,
-#		retrieveFromURL => 0,
-#	    };
-#	    my $object_metadata = $ws->save_object($workspace_save_obj_params);
-#	    $status = $status."  -> saving the new regulatory network to your workspace with ID:$regulatory_network_id\n";
-#	    $status = "SUCCESS.\n".$status;
-#	} else {
-#	    $status = "ERROR - not saving new version because no regulatory interactions in the new namespace exist!\n".$status;
-#	}
-#    }
-    
-    
-    #END change_regulatory_network_namespace
-    my @_bad_returns;
-    (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
-    (!ref($new_regulatory_network_id)) or push(@_bad_returns, "Invalid type for return variable \"new_regulatory_network_id\" (value was \"$new_regulatory_network_id\")");
-    if (@_bad_returns) {
-	my $msg = "Invalid returns passed to change_regulatory_network_namespace:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'change_regulatory_network_namespace');
-    }
-    return($status, $new_regulatory_network_id);
-}
-
-
-
-
 =head2 create_prom_constraints
 
   $status, $prom_constraint_id = $obj->create_prom_constraints($e_id, $r_id, $workspace_name, $token)
@@ -978,6 +654,10 @@ prom_constraint_id is a string
 
 =item Description
 
+Maps the regulatory network stored 
+funcdef change_regulatory_network_namespace(regulatory_network_id regulatory_network_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, regulatory_network_id new_regulatory_network_id);
+
+/*
 Once you have loaded gene expression data and a regulatory network for a specific genome, then
 you can use this method to create add PROM contraints to the FBA model, thus creating a PROM model.  This method will then return
 you the ID of the PROM model object created in your workspace.  The PROM Model object can then be simulated, visualized, edited, etc.
@@ -1207,160 +887,6 @@ sub load_expression_data
 
 
 
-=head2 retrieve_regulatory_network_data
-
-  $return_1, $return_2 = $obj->retrieve_regulatory_network_data($id)
-
-=over 4
-
-=item Parameter and return types
-
-=begin html
-
-<pre>
-$id is a regulomeModelId
-$return_1 is a status
-$return_2 is a regulatory_network_id
-regulomeModelId is a string
-status is a string
-regulatory_network_id is a string
-
-</pre>
-
-=end html
-
-=begin text
-
-$id is a regulomeModelId
-$return_1 is a status
-$return_2 is a regulatory_network_id
-regulomeModelId is a string
-status is a string
-regulatory_network_id is a string
-
-
-=end text
-
-
-
-=item Description
-
-This method retrieves regulatory network data from the KBase Regulation service based on the Regulome model ID.  This
-model must be defined for the same exact genome with which you are constructing the FBA model.  If a model does not exist for
-your genome, the you have to build it yourself using the Regulation service.  See the Regulation service for more information on
-how to retrieve a list of models for your genome, and how to propagate existing models to build a new model for your genome.
-
-=back
-
-=cut
-
-sub retrieve_regulatory_network_data
-{
-    my $self = shift;
-    my($id) = @_;
-
-    my @_bad_arguments;
-    (!ref($id)) or push(@_bad_arguments, "Invalid type for argument \"id\" (value was \"$id\")");
-    if (@_bad_arguments) {
-	my $msg = "Invalid arguments passed to retrieve_regulatory_network_data:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'retrieve_regulatory_network_data');
-    }
-
-    my $ctx = $Bio::KBase::PROM::Service::CallContext;
-    my($return_1, $return_2);
-    #BEGIN retrieve_regulatory_network_data
-    #END retrieve_regulatory_network_data
-    my @_bad_returns;
-    (!ref($return_1)) or push(@_bad_returns, "Invalid type for return variable \"return_1\" (value was \"$return_1\")");
-    (!ref($return_2)) or push(@_bad_returns, "Invalid type for return variable \"return_2\" (value was \"$return_2\")");
-    if (@_bad_returns) {
-	my $msg = "Invalid returns passed to retrieve_regulatory_network_data:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'retrieve_regulatory_network_data');
-    }
-    return($return_1, $return_2);
-}
-
-
-
-
-=head2 load_regulatory_network_data
-
-  $return_1, $return_2 = $obj->load_regulatory_network_data($id)
-
-=over 4
-
-=item Parameter and return types
-
-=begin html
-
-<pre>
-$id is a regulomeModelId
-$return_1 is a status
-$return_2 is a regulatory_network_id
-regulomeModelId is a string
-status is a string
-regulatory_network_id is a string
-
-</pre>
-
-=end html
-
-=begin text
-
-$id is a regulomeModelId
-$return_1 is a status
-$return_2 is a regulatory_network_id
-regulomeModelId is a string
-status is a string
-regulatory_network_id is a string
-
-
-=end text
-
-
-
-=item Description
-
-Given your own regulatory network for a given genome, load it into the workspace so that it can be used to construct a PROM
-model. Make sure your IDs for each gene are consistant with your FBA model and your gene expression data!
-
-=back
-
-=cut
-
-sub load_regulatory_network_data
-{
-    my $self = shift;
-    my($id) = @_;
-
-    my @_bad_arguments;
-    (!ref($id)) or push(@_bad_arguments, "Invalid type for argument \"id\" (value was \"$id\")");
-    if (@_bad_arguments) {
-	my $msg = "Invalid arguments passed to load_regulatory_network_data:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'load_regulatory_network_data');
-    }
-
-    my $ctx = $Bio::KBase::PROM::Service::CallContext;
-    my($return_1, $return_2);
-    #BEGIN load_regulatory_network_data
-    #END load_regulatory_network_data
-    my @_bad_returns;
-    (!ref($return_1)) or push(@_bad_returns, "Invalid type for return variable \"return_1\" (value was \"$return_1\")");
-    (!ref($return_2)) or push(@_bad_returns, "Invalid type for return variable \"return_2\" (value was \"$return_2\")");
-    if (@_bad_returns) {
-	my $msg = "Invalid returns passed to load_regulatory_network_data:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'load_regulatory_network_data');
-    }
-    return($return_1, $return_2);
-}
-
-
-
-
 =head2 version 
 
   $return = $obj->version()
@@ -1525,37 +1051,6 @@ a string
 
 
 
-=head2 fbamodel_id
-
-=over 4
-
-
-
-=item Description
-
-A workspace ID for an fba model
-
-
-=item Definition
-
-=begin html
-
-<pre>
-a string
-</pre>
-
-=end html
-
-=begin text
-
-a string
-
-=end text
-
-=back
-
-
-
 =head2 boolean_gene_expression_data_id
 
 =over 4
@@ -1595,7 +1090,7 @@ a string
 
 =item Description
 
-A workspace id for a set of expression data on/off calls needed by PROM
+A workspace id for a set of expression data on/off calls
 
 
 =item Definition
@@ -1626,38 +1121,7 @@ a string
 
 =item Description
 
-A workspace ID for a regulatory network object, needed by PROM
-
-
-=item Definition
-
-=begin html
-
-<pre>
-a string
-</pre>
-
-=end html
-
-=begin text
-
-a string
-
-=end text
-
-=back
-
-
-
-=head2 regulomeModelId
-
-=over 4
-
-
-
-=item Description
-
-The ID of a regulome model as registered with the Regulation service
+A workspace ID for a regulatory network object
 
 
 =item Definition
