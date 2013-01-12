@@ -1,9 +1,8 @@
 use strict;
 use warnings;
 
-use Test::More tests => 5;
-use Data::Dumper;
 use Test::More;
+use Data::Dumper;
 
 # MAKE SURE WE LOCALLY HAVE JSON RPC LIBS INSTALLED
 use_ok("Bio::KBase::PROM::Client");
@@ -42,6 +41,7 @@ my $status;
 my $prom = Bio::KBase::PROM::Client->new("http://localhost:7060", user_id=>$user_id, password=>$password);
 ok(defined($prom),"instantiating PROM client");
 
+################## TEST 1
 # test of regulatory network data creation
 #my $regulatory_network_id;
 #($status, $regulatory_network_id) = $prom->get_regulatory_network_by_genome("kb|g.20848",$workspace_name, $token->token());
@@ -50,6 +50,7 @@ ok(defined($prom),"instantiating PROM client");
 #print "RETURNED ID: $regulatory_network_id\n";
 #exit;
 
+################## TEST 2
 # test of expression data creation
 #my $expression_data_collection_id;
 #($status, $expression_data_collection_id) = $prom->get_expression_data_by_genome("kb|g.372",$workspace_name, $token->token());
@@ -58,82 +59,62 @@ ok(defined($prom),"instantiating PROM client");
 #print "RETURNED ID: $expression_data_collection_id\n";
 #exit;
 
-
+################## TEST 3
 # test migration of regulatory network namespace
-my $new_reg_network_name;
-my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3";
-#kb|g.20848.CDS.3329	kb|g.20848.CDS.440
-my $map = {'kb|g.20848.CDS.3329'=>'gene1','kb|g.20848.CDS.440'=>'gene2' };
-($status, $new_reg_network_name) = $prom->change_regulatory_network_namespace($reg_network_id,$map,$workspace_name, $token->token());
-print "STATUS: \n$status\n";
-print "RETURNED ID: $new_reg_network_name\n";
-exit;
+# first we have to generate the mapping using the translation service
+#use_ok("Bio::KBase::MOTranslationService::Client");
+#my $translation = Bio::KBase::MOTranslationService::Client->new("http://140.221.92.71:7061");
+#use DBKernel;
+#my $port=3306; my $user='guest'; my $pass='guest';
+#my $dbhost='pub.microbesonline.org';
+#my $dbKernel = DBKernel->new('mysql','genomics', $user, $pass, $port, $dbhost, '');
+#my $moDbh=$dbKernel->{_dbh};
+#
+#my $tax_id = "211586";
+#
+#my $query_sequences = [];
+#my $sql='SELECT Locus.locusId FROM Locus,Scaffold WHERE Locus.scaffoldId=Scaffold.scaffoldId AND Scaffold.taxonomyId=?';
+#my $sth=$moDbh->prepare($sql);
+#$sth->execute($tax_id);
+#my $locus_ids = [];
+#while (my $row=$sth->fetch) {
+#    push $locus_ids, ${$row}[0];
+#}
+#my ($mappingTo20848, $log) = $translation->moLocusIds_to_fid_in_genome_fast($locus_ids,"kb|g.20848");  #MO Version
+#my ($mappingTo372, $log2) = $translation->moLocusIds_to_fid_in_genome($locus_ids,"kb|g.372");     #Seed Version
+#my $translation_map = {};
+#foreach my $map (keys %$mappingTo20848) {
+#    if(($mappingTo372->{$map}->{best_match} ne '') && ($mappingTo20848->{$map}->{best_match} ne '')) {
+#        $translation_map->{$mappingTo20848->{$map}->{best_match}} = $mappingTo372->{$map}->{best_match};
+#    }
+#}
+#print Dumper($translation_map)."\n";
+#
+## next we have to actually create the new regulatory network object
+#my $new_reg_network_name;
+#my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3"; #regulatory network based on g.20848
+##my $translation_map = {'kb|g.20848.CDS.3329'=>'gene1','kb|g.20848.CDS.440'=>'gene2' };
+#($status, $new_reg_network_name) = $prom->change_regulatory_network_namespace($reg_network_id,$translation_map,$workspace_name, $token->token());
+#print "STATUS: \n$status\n";
+#print "RETURNED ID: $new_reg_network_name\n";
 
 
-# put it all together
+################## TEST 4
+# put it all together and build the actual prom constraints object
 my $prom_constraints_id;
 my $expression_data_collection_id = "D459353C-5B85-11E2-89F6-5AEABDAD6664";
-my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3";
+#my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3"; #original network based on g.20848
+my $reg_network_id = "DE633B86-5C34-11E2-A3A3-93838B8565CF"; #new network apped to g.372
 ($status, $prom_constraints_id) = $prom->create_prom_constraints($expression_data_collection_id,$reg_network_id,$workspace_name, $token->token());
 
 print "STATUS: \n$status\n";
 print "RETURNED ID: $prom_constraints_id\n";
 
-exit;
 
 
 
 
-
-
-
-# creating a new regulatory model with regprecise
-
-use Bio::KBase::Regulation::Client;
-
-my $reg = Bio::KBase::Regulation::Client->new('http://140.221.92.147:8080/KBaseRegPreciseRPC/regprecise');
-#my $reg = Bio::KBase::Regulation::Client->new('http://140.221.92.231/services/regprecise/');
-# get a list of model collections
-my $collections = $reg->getRegulomeModelCollections();
-print Dumper($collections)."\n";
-
-# we can see that we have a collection for Shewenella, for instance, with ID=1:
-#        {
-#            'buildParams' => '',
-#            'createDate' => undef,
-#            'regulomeSource' => 'REGPRECISE_CURATED',
-#            'taxonName' => 'Shewanella',
-#            'name' => 'Shewanella',
-#           'collectionId' => '1',
-#            'phylum' => 'Proteobacteria/gamma',
-#            'description' => undef,
-#            'regulomeModelCount' => 16
-#          }
-
-# let's get the models in the collection just to be sure.
-my $regulomeModels = $reg->getRegulomeModelsByCollectionId("1");
-print Dumper($regulomeModels)."\n"; 
-
-# but we want a model for "kb|g.372"!  let's build it (commented out because we only need to build it once)
-#my $param = {
-#    targetGenomeId => "kb|g.372",
-#    sourceRegulomeCollectionId => "1"
-#};
-#my $processState = $reg->buildRegulomeModel($param);
-#print Dumper($processState)."\n";
-
-# we can look up our process ID to see how much longer to wait
-my $processState = $reg->getProcessState("259");
-print Dumper($processState)."\n";
-
-
-# once it is complete, we can retrieve our model
-
-#"kb|g.9677.regulome.0"
-
-
-my $regulonModels = $reg->getRegulonModel("kb|g.20905.regulome.0");
-print Dumper($regulonModels)."\n";
+done_testing();
 
 
 

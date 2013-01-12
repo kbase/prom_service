@@ -22,7 +22,7 @@ module PROM
 
     /* A KBase ID is a string starting with the characters "kb|".  KBase IDs are typed. The types are
     designated using a short string.  KBase IDs may be hierarchical.  See the standard KBase documentation
-    for more information.  */
+    for more information. */
     typedef string kbase_id;
     
     /* A KBase ID for a genome feature */
@@ -56,7 +56,8 @@ module PROM
     /* Specifies the ID of the data object in the source */
     typedef string source_id;
     
-    /* The string representation of the bearer token needed to authenticate on the workspace service */
+    /* The string representation of the bearer token needed to authenticate on the workspace service, this will eventually
+    be eliminated when this service is updated to use the auto type-compiler auth functionality */
     typedef string auth_token;
     
     
@@ -177,15 +178,7 @@ module PROM
     funcdef get_expression_data_by_genome(genome_id genome_id, workspace_name workspace_name, auth_token token) returns (status status,expression_data_collection_id expression_data_collection_id);
     
     
-    /* funcdef create_expression_data_collection(workspace_name) returns (status, expression_data_collection_id); */
-    /* funcdef add_expression_data_to_collection(workspace_name, list<expression_data>); */
-    /* funcdef merge_expression_data_collections(list <expression_data_collection_id> collections) returns (status,expression_data_collection_id); */
-    
-    
-    funcdef change_expression_data_namespace(expression_data_collection_id expression_data_collection_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, expression_data_collection_id expression_data_collection_id);
-    
-    
-    
+
     /*
     This method fetches a regulatory network from the regulation service that is associated with the given genome id.  If there
     are multiple regulome models available for the given genome, then the model with the most regulons is selected.  The method
@@ -198,11 +191,11 @@ module PROM
     */
     funcdef get_regulatory_network_by_genome(genome_id genome_id, workspace_name workspace_name, auth_token token) returns (status status, regulatory_network_id regulatory_network_id);
     
-    /* funcdef add_regulatory_network(workspace_name, regulatory_network); */
-    
     
     /*
-    Maps the regulatory network stored 
+    Maps the regulatory network stored in a workspace in one genome namespace to an alternate genome namespace.  This is useful,
+    for instance, if the regulatory network was built for 
+    */
     funcdef change_regulatory_network_namespace(regulatory_network_id regulatory_network_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, regulatory_network_id new_regulatory_network_id);
     
     /*
@@ -215,32 +208,34 @@ module PROM
     
     
     
+    /* methods not yet implemented, and not essential for end-to-end testing, but on the docket */
+    /* funcdef create_expression_data_collection(workspace_name) returns (status, expression_data_collection_id); */
+    /* funcdef add_expression_data_to_collection(workspace_name, list<expression_data>); */
+    /* funcdef merge_expression_data_collections(list <expression_data_collection_id> collections) returns (status,expression_data_collection_id); */
+    /* funcdef change_expression_data_namespace(expression_data_collection_id expression_data_collection_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, expression_data_collection_id expression_data_collection_id); */
+    /* funcdef add_regulatory_network(workspace_name, regulatory_network); */
     
     
+    
+    /* ********************** random old notes from previous iterations of this API ******************* */
     /* This method allows the end user to upload gene expression data directly to a workspace.  This is useful if, for
     instance, the gene expression data needed is private or not yet uploaded to the CDM.  Note that it is critical that
     the gene ids are the same as the ids used in the FBA model! */
     funcdef load_expression_data(boolean_gene_expression_data_collection data) returns (status,expression_data_collection_id);
-
     /* Given several expression data collections, this method merges them into a single collection in the workspace, and returns
     the collection id.  This is useful for building a collection which includes both CDM data and data from multiple other sources,
     as the create_prom_model method does not allow multiple expression data collections.
     NOT YET IMPLEMENTED
     funcdef merge_expression_data_collections(list <expression_data_collection_id> collections) returns (status,expression_data_collection_id);
     */
-    
-    
     /* This method retrieves regulatory network data from the KBase Regulation service based on the Regulome model ID.  This
     model must be defined for the same exact genome with which you are constructing the FBA model.  If a model does not exist for
     your genome, the you have to build it yourself using the Regulation service.  See the Regulation service for more information on
     how to retrieve a list of models for your genome, and how to propagate existing models to build a new model for your genome. 
     funcdef retrieve_regulatory_network_data(regulomeModelId id) returns (status,regulatory_network_id);*/
-    
     /* Given your own regulatory network for a given genome, load it into the workspace so that it can be used to construct a PROM
     model. Make sure your IDs for each gene are consistant with your FBA model and your gene expression data! 
     funcdef load_regulatory_network_data(regulomeModelId id) returns (status,regulatory_network_id);*/
-    
-    
     
 
 };

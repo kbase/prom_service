@@ -40,7 +40,8 @@ print 'Collection: '.Dumper($object)."\n";
 
 # try to get regulatory network from the workspace
 #my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3"; #reg network for 20848
-my $reg_network_id = "129A7B6A-5B8D-11E2-B9FB-82EFBDAD6664"; #dummy network
+#my $reg_network_id = "129A7B6A-5B8D-11E2-B9FB-82EFBDAD6664"; #dummy network
+my $reg_network_id = "DE633B86-5C34-11E2-A3A3-93838B8565CF"; #network mapped to g.372, same as expression data
 $get_object_params = {
     id => $reg_network_id,
     type => "Unspecified",
