@@ -46,9 +46,11 @@ module PROM
     /* Status message used by this service to provide information on the final status of a step  */
     typedef string status;
     
-    /* A workspace ID for the prom constraint object, used to access any models created by this service in
-    a user's workpace */
+    /* A workspace ID for the prom constraint object in a user's workpace */
     typedef string prom_constraint_id;
+    
+    /* A workspace ID for the annotation object in a user's workpace */
+    typedef string annotation_uuid;
     
     /* Specifies the source of a data object, e.g. KBase or MicrobesOnline */
     typedef string source;
@@ -109,14 +111,7 @@ module PROM
     
         feature_id TF            - the genome feature that is the regulator
         feature_id target        - the genome feature that is the target of regulation
-        float probTTonGivenTFoff - the probability that the transcriptional target is ON, given that the
-                                   transcription factor is not expressed, as defined in Candrasekarana &
-                                   Price, PNAS 2010 and used to predict cumulative effects of multiple
-                                   regulatory interactions with a single target.  Set to null or empty if
-                                   this probability has not been calculated yet.
-        float probTTonGivenTFon  - the probability that the transcriptional target is ON, given that the
-                                   transcription factor is expressed.    Set to null or empty if
-                                   this probability has not been calculated yet.
+
     */
     typedef structure {
         feature_id TF;
@@ -138,24 +133,68 @@ module PROM
     /* * PROM CONSTRAINTS TYPE * */
     /* ************************************************************************************* */
 
-    /* An object that encapsulates the information necessary to apply PROM-based constraints to an FBA model. This
-    includes a regulatory network consisting of a set of regulatory interactions, and a copy of the expression data
-    that is required to compute the probability of regulatory interactions.  A prom constraint object can then be
-    associated with an FBA model to create a PROM model that can be simulated with tools from the FBAModelingService.
+
     
-        list<regulatory_interaction> regulatory_network           - a collection of regulatory interactions that
-                                                                    compose a regulatory network.  Probabilty values
-                                                                    are initially set to nan until they are computed
-                                                                    from the set of expression experiments.
-        list<boolean_gene_expression_data> expression_experiments - a collection of expression data experiments that
-                                                                    coorespond to this genome of interest.
+    /*
+    Object required by the prom_constraint object which defines the computed probabilities for a target gene.  The
+    TF regulating this target can be deduced based on the tfMap object.
+    
+        string target_uuid        - id of the target gene in the annotation object namespace
+        float tfOffProbability    - PROB(target=ON|TF=OFF)
+                                    the probability that the transcriptional target is ON, given that the
+                                    transcription factor is not expressed, as defined in Candrasekarana &
+                                    Price, PNAS 2010 and used to predict cumulative effects of multiple
+                                    regulatory interactions with a single target.  Set to null or empty if
+                                    this probability has not been calculated yet.
+        float probTTonGivenTFon   - PROB(target=ON|TF=ON)
+                                    the probability that the transcriptional target is ON, given that the
+                                    transcription factor is expressed.    Set to null or empty if
+                                    this probability has not been calculated yet.
     */
     typedef structure {
-        regulatory_network regulatory_network;
+        string target_uuid;
+        float tfOnProbability;
+        float tfOffProbability;
+    } regulatory_target;
+    
+    /*
+    Object required by the prom_constraint object, this maps a transcription factor by its uuid (in some
+    annotation namespace) to a group of regulatory target genes.
+    
+        string transcriptionFactor_uuid                       - id of the TF in the annotation object namespace
+        list <regulatory_target> transcriptionFactorMapTarget - collection of regulatory target genes for the TF
+                                                                along with associated joint probabilities for each
+                                                                target to be on given that the TF is on or off.
+    */
+    typedef structure {
+        string transcriptionFactor_uuid;
+        list <regulatory_target> transcriptionFactorMapTarget;
+    } tfMap;
+    
+    /*
+    An object that encapsulates the information necessary to apply PROM-based constraints to an FBA model. This
+    includes a regulatory network consisting of a set of regulatory interactions (implied by the set of tfMap
+    objects) and interaction probabilities as defined in each regulatory_target object.  A link the the annotation
+    object is required in order to properly link to an FBA model object.  A reference to the expression_data_collection
+    used to compute the interaction probabilities is provided for future reference.
+    
+        prom_constraint_id id                                         - the id of this prom_constraint object in a
+                                                                        workspace
+        annotation_uuid annotation_uuid                               - the id of the annotation object in the workspace
+                                                                        which specfies how TFs and targets are named
+        list <tfMap> transcriptionFactorMaps                          - the list of tfMaps which specifies both the
+                                                                        regulatory network and interaction probabilities
+                                                                        between TF and target genes
+        expression_data_collection_id expression_data_collection_id   - the id of the expresion_data_collection object in
+                                                                        the workspace which was used to compute the
+                                                                        regulatory interaction probabilities
+    */
+    typedef structure {
+        prom_constraint_id id;
+        annotation_uuid annotation_uuid;
+        list <tfMap> transcriptionFactorMaps;
         expression_data_collection_id expression_data_collection_id;
-    } prom_constraint;
-    
-    
+    } prom_contstraint;
 
 
     /* ************************************************************************************* */
@@ -178,7 +217,6 @@ module PROM
     funcdef get_expression_data_by_genome(genome_id genome_id, workspace_name workspace_name, auth_token token) returns (status status,expression_data_collection_id expression_data_collection_id);
     
     
-
     /*
     This method fetches a regulatory network from the regulation service that is associated with the given genome id.  If there
     are multiple regulome models available for the given genome, then the model with the most regulons is selected.  The method
@@ -217,11 +255,11 @@ module PROM
     
     
     
-    /* ********************** random old notes from previous iterations of this API ******************* */
+    /* ********************** random old notes from previous iterations of this API, so ignore beyond this point ******************* */
     /* This method allows the end user to upload gene expression data directly to a workspace.  This is useful if, for
     instance, the gene expression data needed is private or not yet uploaded to the CDM.  Note that it is critical that
-    the gene ids are the same as the ids used in the FBA model! */
-    funcdef load_expression_data(boolean_gene_expression_data_collection data) returns (status,expression_data_collection_id);
+    the gene ids are the same as the ids used in the FBA model!
+    funcdef load_expression_data(boolean_gene_expression_data_collection data) returns (status,expression_data_collection_id); */
     /* Given several expression data collections, this method merges them into a single collection in the workspace, and returns
     the collection id.  This is useful for building a collection which includes both CDM data and data from multiple other sources,
     as the create_prom_model method does not allow multiple expression data collections.

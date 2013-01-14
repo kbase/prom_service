@@ -856,22 +856,24 @@ sub create_prom_constraints
 	    
 	    # actually create the prom model object (note that it is misnamed in ModelSEED!!! should be a constraints object, not
 	    # a model object)
-	    #my $PromModelConstraints = ModelSEED::MS::PROMModel->new("annotation_uuid" => $annotation->uuid(), "transcriptionFactorMaps" => $tfMaps, "id" => "pm_$genomeid");
-	    my $PromModelConstraints = ModelSEED::MS::PROMModel->new(
-						    "annotation_uuid" => "some_annotation",
-						    "transcriptionFactorMaps" => $tfMap,
-						    "id" => "junior_prom");
-	    print Dumper($PromModelConstraints)."\n";
+	    #  THIS IS HOW YOU WOULD DO IT WITH A ModelSEED object:
+	    #my $PromModelConstraints = ModelSEED::MS::PROMModel->new(
+		#				    "annotation_uuid" => "some_annotation",
+		#				    "transcriptionFactorMaps" => $tfMap,
+		#				    "id" => "junior_prom");
+	    # this is how you would do it as a package for the workspace
+	    $prom_constraint_id = $self->{'uuid_generator'}->create_str();
+	    my $prom_constraints = {
+		    id => $prom_constraint_id,
+		    annotation_uuid => '',
+		    transcriptionFactorMaps => $tfMap,
+		    expression_data_collection_id => $e_id
+	    };
+	    #print Dumper($prom_constraints)."\n";
 	    
 	    # save the prom constraints to the workspace
-	    my $json_translator = new JSON;
-	    $json_translator = $json_translator->allow_nonref(0);
-	    $json_translator = $json_translator->allow_blessed;
-	    $json_translator = $json_translator->convert_blessed;
-	    
-	    my $encoded_json_PromModelConstraints = $json_translator($PromModelConstraints);
+	    my $encoded_json_PromModelConstraints = encode_json($prom_constraints);
 	    print $encoded_json_PromModelConstraints."\n";
-	    $prom_constraint_id = $self->{'uuid_generator'}->create_str();
 	    my $workspace_save_obj_params = {
 		id => $prom_constraint_id,
 		type => "Unspecified",
@@ -908,89 +910,6 @@ sub create_prom_constraints
 							       method_name => 'create_prom_constraints');
     }
     return($status, $prom_constraint_id);
-}
-
-
-
-
-=head2 load_expression_data
-
-  $return_1, $return_2 = $obj->load_expression_data($data)
-
-=over 4
-
-=item Parameter and return types
-
-=begin html
-
-<pre>
-$data is a boolean_gene_expression_data_collection
-$return_1 is a status
-$return_2 is an expression_data_collection_id
-boolean_gene_expression_data_collection is a reference to a hash where the following keys are defined:
-	id has a value which is an expression_data_collection_id
-	expression_data_ids has a value which is a reference to a list where each element is a boolean_gene_expression_data_id
-expression_data_collection_id is a string
-boolean_gene_expression_data_id is a string
-status is a string
-
-</pre>
-
-=end html
-
-=begin text
-
-$data is a boolean_gene_expression_data_collection
-$return_1 is a status
-$return_2 is an expression_data_collection_id
-boolean_gene_expression_data_collection is a reference to a hash where the following keys are defined:
-	id has a value which is an expression_data_collection_id
-	expression_data_ids has a value which is a reference to a list where each element is a boolean_gene_expression_data_id
-expression_data_collection_id is a string
-boolean_gene_expression_data_id is a string
-status is a string
-
-
-=end text
-
-
-
-=item Description
-
-This method allows the end user to upload gene expression data directly to a workspace.  This is useful if, for
-instance, the gene expression data needed is private or not yet uploaded to the CDM.  Note that it is critical that
-the gene ids are the same as the ids used in the FBA model!
-
-=back
-
-=cut
-
-sub load_expression_data
-{
-    my $self = shift;
-    my($data) = @_;
-
-    my @_bad_arguments;
-    (ref($data) eq 'HASH') or push(@_bad_arguments, "Invalid type for argument \"data\" (value was \"$data\")");
-    if (@_bad_arguments) {
-	my $msg = "Invalid arguments passed to load_expression_data:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'load_expression_data');
-    }
-
-    my $ctx = $Bio::KBase::PROM::Service::CallContext;
-    my($return_1, $return_2);
-    #BEGIN load_expression_data
-    #END load_expression_data
-    my @_bad_returns;
-    (!ref($return_1)) or push(@_bad_returns, "Invalid type for return variable \"return_1\" (value was \"$return_1\")");
-    (!ref($return_2)) or push(@_bad_returns, "Invalid type for return variable \"return_2\" (value was \"$return_2\")");
-    if (@_bad_returns) {
-	my $msg = "Invalid returns passed to load_expression_data:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'load_expression_data');
-    }
-    return($return_1, $return_2);
 }
 
 
@@ -1292,8 +1211,38 @@ a string
 
 =item Description
 
-A workspace ID for the prom constraint object, used to access any models created by this service in
-a user's workpace
+A workspace ID for the prom constraint object in a user's workpace
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a string
+</pre>
+
+=end html
+
+=begin text
+
+a string
+
+=end text
+
+=back
+
+
+
+=head2 annotation_uuid
+
+=over 4
+
+
+
+=item Description
+
+A workspace ID for the annotation object in a user's workpace
 
 
 =item Definition
@@ -1546,14 +1495,6 @@ the same namespace.
 
     feature_id TF            - the genome feature that is the regulator
     feature_id target        - the genome feature that is the target of regulation
-    float probTTonGivenTFoff - the probability that the transcriptional target is ON, given that the
-                               transcription factor is not expressed, as defined in Candrasekarana &
-                               Price, PNAS 2010 and used to predict cumulative effects of multiple
-                               regulatory interactions with a single target.  Set to null or empty if
-                               this probability has not been calculated yet.
-    float probTTonGivenTFon  - the probability that the transcriptional target is ON, given that the
-                               transcription factor is expressed.    Set to null or empty if
-                               this probability has not been calculated yet.
 
 
 =item Definition
@@ -1619,7 +1560,7 @@ a reference to a list where each element is a regulatory_interaction
 
 
 
-=head2 prom_constraint
+=head2 regulatory_target
 
 =over 4
 
@@ -1627,17 +1568,20 @@ a reference to a list where each element is a regulatory_interaction
 
 =item Description
 
-An object that encapsulates the information necessary to apply PROM-based constraints to an FBA model. This
-includes a regulatory network consisting of a set of regulatory interactions, and a copy of the expression data
-that is required to compute the probability of regulatory interactions.  A prom constraint object can then be
-associated with an FBA model to create a PROM model that can be simulated with tools from the FBAModelingService.
+Object required by the prom_constraint object which defines the computed probabilities for a target gene.  The
+TF regulating this target can be deduced based on the tfMap object.
 
-    list<regulatory_interaction> regulatory_network           - a collection of regulatory interactions that
-                                                                compose a regulatory network.  Probabilty values
-                                                                are initially set to nan until they are computed
-                                                                from the set of expression experiments.
-    list<boolean_gene_expression_data> expression_experiments - a collection of expression data experiments that
-                                                                coorespond to this genome of interest.
+    string target_uuid        - id of the target gene in the annotation object namespace
+    float tfOffProbability    - PROB(target=ON|TF=OFF)
+                                the probability that the transcriptional target is ON, given that the
+                                transcription factor is not expressed, as defined in Candrasekarana &
+                                Price, PNAS 2010 and used to predict cumulative effects of multiple
+                                regulatory interactions with a single target.  Set to null or empty if
+                                this probability has not been calculated yet.
+    float probTTonGivenTFon   - PROB(target=ON|TF=ON)
+                                the probability that the transcriptional target is ON, given that the
+                                transcription factor is expressed.    Set to null or empty if
+                                this probability has not been calculated yet.
 
 
 =item Definition
@@ -1646,7 +1590,106 @@ associated with an FBA model to create a PROM model that can be simulated with t
 
 <pre>
 a reference to a hash where the following keys are defined:
-regulatory_network has a value which is a regulatory_network
+target_uuid has a value which is a string
+tfOnProbability has a value which is a float
+tfOffProbability has a value which is a float
+
+</pre>
+
+=end html
+
+=begin text
+
+a reference to a hash where the following keys are defined:
+target_uuid has a value which is a string
+tfOnProbability has a value which is a float
+tfOffProbability has a value which is a float
+
+
+=end text
+
+=back
+
+
+
+=head2 tfMap
+
+=over 4
+
+
+
+=item Description
+
+Object required by the prom_constraint object, this maps a transcription factor by its uuid (in some
+annotation namespace) to a group of regulatory target genes.
+
+    string transcriptionFactor_uuid                       - id of the TF in the annotation object namespace
+    list <regulatory_target> transcriptionFactorMapTarget - collection of regulatory target genes for the TF
+                                                            along with associated joint probabilities for each
+                                                            target to be on given that the TF is on or off.
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a reference to a hash where the following keys are defined:
+transcriptionFactor_uuid has a value which is a string
+transcriptionFactorMapTarget has a value which is a reference to a list where each element is a regulatory_target
+
+</pre>
+
+=end html
+
+=begin text
+
+a reference to a hash where the following keys are defined:
+transcriptionFactor_uuid has a value which is a string
+transcriptionFactorMapTarget has a value which is a reference to a list where each element is a regulatory_target
+
+
+=end text
+
+=back
+
+
+
+=head2 prom_contstraint
+
+=over 4
+
+
+
+=item Description
+
+An object that encapsulates the information necessary to apply PROM-based constraints to an FBA model. This
+includes a regulatory network consisting of a set of regulatory interactions (implied by the set of tfMap
+objects) and interaction probabilities as defined in each regulatory_target object.  A link the the annotation
+object is required in order to properly link to an FBA model object.  A reference to the expression_data_collection
+used to compute the interaction probabilities is provided for future reference.
+
+    prom_constraint_id id                                         - the id of this prom_constraint object in a
+                                                                    workspace
+    annotation_uuid annotation_uuid                               - the id of the annotation object in the workspace
+                                                                    which specfies how TFs and targets are named
+    list <tfMap> transcriptionFactorMaps                          - the list of tfMaps which specifies both the
+                                                                    regulatory network and interaction probabilities
+                                                                    between TF and target genes
+    expression_data_collection_id expression_data_collection_id   - the id of the expresion_data_collection object in
+                                                                    the workspace which was used to compute the
+                                                                    regulatory interaction probabilities
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a reference to a hash where the following keys are defined:
+id has a value which is a prom_constraint_id
+annotation_uuid has a value which is an annotation_uuid
+transcriptionFactorMaps has a value which is a reference to a list where each element is a tfMap
 expression_data_collection_id has a value which is an expression_data_collection_id
 
 </pre>
@@ -1656,7 +1699,9 @@ expression_data_collection_id has a value which is an expression_data_collection
 =begin text
 
 a reference to a hash where the following keys are defined:
-regulatory_network has a value which is a regulatory_network
+id has a value which is a prom_constraint_id
+annotation_uuid has a value which is an annotation_uuid
+transcriptionFactorMaps has a value which is a reference to a list where each element is a tfMap
 expression_data_collection_id has a value which is an expression_data_collection_id
 
 

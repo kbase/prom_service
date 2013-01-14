@@ -52,3 +52,13 @@ $object = $ws->get_object($get_object_params);
 print 'Collection: '.Dumper($object)."\n";
 
 
+# try to get the prom_constraint object from the workspace
+my $prom_constraint_id = "82F0AE3A-5E9D-11E2-A794-ED78498F8F53";
+$get_object_params = {
+    id => $prom_constraint_id,
+    type => "Unspecified",
+    workspace => $workspace_name,
+    auth => $token->token,
+};
+$object = $ws->get_object($get_object_params);
+print 'Collection: '.Dumper($object)."\n";

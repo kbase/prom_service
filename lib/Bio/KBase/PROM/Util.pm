@@ -50,9 +50,9 @@ sub computeInteractionProbabilities {
     
     # maps the numbers in the input to numbers in the output.  Here we assume that unknown expresson states
     # is mapped to ON.  But is this actually the right thing to do???
-    # NOTE: empty values are mapped to -1, which means that we will catch cases in which we do not find the TF or
+    # NOTE: empty values are mapped to 1, which means that we will NOT catch cases in which we do not find the TF or
     # target in the data
-    my %isOn = (-1 => 0,0 => 1,1 => 1,''=>-1); 
+    my %isOn = (-1 => 0,0 => 1,1 => 1,''=>1); 
 
     ## calculate P(target = ON|TF = OFF) and P(target = ON|TF = ON)
     my $tfTempMap = {};
@@ -90,11 +90,11 @@ sub computeInteractionProbabilities {
 	if ($TF_on_count != 0) { 
 	    $tfMapTarget->{"tfOnProbability"} = $TF_on_TARGET_on_count / $TF_on_count;
             #print "p1:".$tfMapTarget->{"tfOnProbability"}."\n";
-	} else { $tfMapTarget->{"tfOnProbability"} = undef; }
+	} else { $tfMapTarget->{"tfOnProbability"} = 1; }
 	if ($TF_off_count != 0) {
 	    $tfMapTarget->{"tfOffProbability"} = $TF_off_TARGET_on_count / $TF_off_count;
             #print "p2:".$tfMapTarget->{"tfOffProbability"}."\n";
-	} else { $tfMapTarget->{"tfOffProbability"} = undef; }
+	} else { $tfMapTarget->{"tfOffProbability"} = 1; }
         if(exists $tfTempMap->{$TF}) {
             push @{$tfTempMap->{$TF}}, $tfMapTarget;
         } else {
