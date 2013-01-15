@@ -55,7 +55,7 @@ $get_object_params = {
 
 # try to get the prom_constraint object from the workspace
 #my $prom_constraint_id = "82F0AE3A-5E9D-11E2-A794-ED78498F8F53"; #small test model
-my $prom_constraint_id = "B5985C16-5F60-11E2-9A66-DC98371F29C2"; #full model
+my $prom_constraint_id = "80714A94-5F64-11E2-B1E9-279A371F29C2"; #full model
 $get_object_params = {
     id => $prom_constraint_id,
     type => "Unspecified",
@@ -66,6 +66,8 @@ my $prom_constraints = $ws->get_object($get_object_params)->{data};
 print 'Collection: '.Dumper($prom_constraints)."\n";
 
 # create prom model
+
+use lib "/home/msneddon/Desktop/ModelSEED_ENVIRONMENT/ModelSEED/lib";
 use ModelSEED::MS::PROMModel;
 my $pmodel = ModelSEED::MS::PROMModel->new(
            "annotation_uuid" => $prom_constraints->{annotation_uuid},
@@ -73,6 +75,7 @@ my $pmodel = ModelSEED::MS::PROMModel->new(
            "id" => $prom_constraint_id
 );
 
+print Dumper($pmodel)."\n";
 
 
 # = [
