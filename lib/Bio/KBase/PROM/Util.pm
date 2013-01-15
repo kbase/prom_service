@@ -42,7 +42,7 @@ our @EXPORT_OK = qw(computeInteractionProbabilities);
 	#    ...
 	# ]
 sub computeInteractionProbabilities {
-    my ($reg_network, $expression_data) = @_;
+    my ($reg_network, $expression_data, $id_2_uuid_map) = @_;
     
     # should throw in some error checking at some point.
     
@@ -59,6 +59,21 @@ sub computeInteractionProbabilities {
     foreach my $i (@$reg_network) {
         my $TF = $i->[0];
         my $TARGET = $i->[1];
+        
+        #map them to the new ID namespace
+        if( exists $id_2_uuid_map->{$TF}) {
+            $TF = $id_2_uuid_map->{$TF};
+        } else {
+            $status .= "  -> WARNING: could not find $TF in genome annotations!  Skipping this TF!\n";
+            next;
+        }
+        if( exists $id_2_uuid_map->{$TARGET}) {
+            $TARGET = $id_2_uuid_map->{$TARGET};
+        } else {
+            $status .= "  -> WARNING: could not find $TF in genome annotations!  Skipping this TARGET!\n";
+            next;
+        }
+        
         
         my $TF_off_count = 0;
         my $TF_off_TARGET_on_count = 0;

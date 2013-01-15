@@ -7,6 +7,7 @@ use Data::Dumper;
 # MAKE SURE WE LOCALLY HAVE JSON RPC LIBS INSTALLED
 use_ok("Bio::KBase::PROM::Client");
 use_ok("Bio::KBase::workspaceService::Client");
+use_ok("Bio::KBase::fbaModelServices::Client");
 use_ok("Bio::KBase::AuthToken");
 
 # MAKE A CONNECTION (DETERMINE THE URL TO USE BASED ON THE CONFIG MODULE)
@@ -24,7 +25,7 @@ my $token = Bio::KBase::AuthToken->new(user_id => $user_id, password => $passwor
 #create a workspace if it doesn't exist already (set flag to 1 to create workspace)
 my $create_workspace = 0;
 my $workspace_url = 'http://bio-data-1.mcs.anl.gov/services/fba_gapfill';
-if($create_workspace==1) {
+if($create_workspace) {
     my $ws = Bio::KBase::workspaceService::Client->new($workspace_url);
     my $create_workspace_params = {
         workspace => $workspace_name,
@@ -32,7 +33,38 @@ if($create_workspace==1) {
         auth => $token->token()
     };
     my $workspace_meta = $ws->create_workspace($create_workspace_params);
-    print 'Workspace Meta Data: \n'.Dumper($workspace_meta)."\n";
+    print "Workspace Meta Data: \n".Dumper($workspace_meta)."\n";
+    exit;
+}
+
+my $load_genome = 0;
+if($load_genome) {
+    my $fba_url = 'http://bio-data-1.mcs.anl.gov/services/fba';
+    my $fba = Bio::KBase::fbaModelServices::Client->new($fba_url);
+    my $genome_to_workspace_params = {
+        genome => "kb|g.372",
+        workspace => "workspace_1",
+        auth => $token->token(),
+        overwrite => 1
+    };
+    #my $genome_meta = $fba->genome_to_workspace($genome_to_workspace_params);
+    #print "Genome Meta Data: \n".Dumper($genome_meta)."\n";
+    
+    my $genome_to_fba_model_params = {
+        genome => 'kb|g.372',
+	#genome_workspace => '',
+	#probanno_id probanno;
+	#workspace_id probanno_workspace;
+	#float probannoThreshold;
+	#bool probannoOnly;
+	#fbamodel_id model;
+	workspace => "workspace_1",
+        auth =>, $token->token(),
+	overwrite=>1,
+    };
+    my $model_meta = $fba->genome_to_fbamodel($genome_to_fba_model_params);
+    print "Genome Meta Data: \n".Dumper($model_meta)."\n";
+    
     exit;
 }
 
@@ -52,12 +84,12 @@ ok(defined($prom),"instantiating PROM client");
 
 ################## TEST 2
 # test of expression data creation
-#my $expression_data_collection_id;
-#($status, $expression_data_collection_id) = $prom->get_expression_data_by_genome("kb|g.372",$workspace_name, $token->token());
-#ok($status,"running the method returns something");
-#print "STATUS: \n$status\n";
-#print "RETURNED ID: $expression_data_collection_id\n";
-#exit;
+my $expression_data_collection_id;
+($status, $expression_data_collection_id) = $prom->get_expression_data_by_genome("kb|g.372",$workspace_name, $token->token());
+ok($status,"running the method returns something");
+print "STATUS: \n$status\n";
+print "RETURNED ID: $expression_data_collection_id\n";
+exit;
 
 ################## TEST 3
 # test migration of regulatory network namespace
@@ -103,10 +135,10 @@ ok(defined($prom),"instantiating PROM client");
 # put it all together and build the actual prom constraints object
 my $prom_constraints_id;
 my $expression_data_collection_id = "D459353C-5B85-11E2-89F6-5AEABDAD6664";
-#my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3"; #original network based on g.20848
+   ###my $reg_network_id = "CFAC8EDE-59EC-11E2-A47A-6BBB7CBB0AD3"; #original network based on g.20848
 my $reg_network_id = "DE633B86-5C34-11E2-A3A3-93838B8565CF"; #new network apped to g.372
-($status, $prom_constraints_id) = $prom->create_prom_constraints($expression_data_collection_id,$reg_network_id,$workspace_name, $token->token());
-
+my $annot_id = "kb|g.372.fbamdl.1.anno";
+($status, $prom_constraints_id) = $prom->create_prom_constraints($expression_data_collection_id,$reg_network_id,$annot_id,$workspace_name, $token->token());
 print "STATUS: \n$status\n";
 print "RETURNED ID: $prom_constraints_id\n";
 

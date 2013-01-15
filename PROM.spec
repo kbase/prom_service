@@ -49,8 +49,11 @@ module PROM
     /* A workspace ID for the prom constraint object in a user's workpace */
     typedef string prom_constraint_id;
     
-    /* A workspace ID for the annotation object in a user's workpace */
+    /* A workspace UUID for the annotation object in a user's workpace */
     typedef string annotation_uuid;
+    
+    /* A workspace ID for the annotation object in a user's workspace - is this different than the UUID?? */
+    typedef string genome_annotation_id;
     
     /* Specifies the source of a data object, e.g. KBase or MicrobesOnline */
     typedef string source;
@@ -242,7 +245,7 @@ module PROM
     you the ID of the PROM model object created in your workspace.  The PROM Model object can then be simulated, visualized, edited, etc.
     using methods from the FBAModeling Service.
     */
-    funcdef create_prom_constraints(expression_data_collection_id e_id, regulatory_network_id r_id, workspace_name workspace_name, auth_token token) returns (status status, prom_constraint_id prom_constraint_id);
+    funcdef create_prom_constraints(expression_data_collection_id e_id, regulatory_network_id r_id, genome_annotation_id a_id, workspace_name workspace_name, auth_token token) returns (status status, prom_constraint_id prom_constraint_id);
     
     
     

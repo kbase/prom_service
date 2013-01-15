@@ -226,8 +226,9 @@ sub get_expression_data_by_genome
 	    # go through each experiment that was found
 	    my $exp_counter = 0;
 	    foreach my $exp (@experiment_list) {
-		$exp_counter ++; if ($exp_counter>5) { last; }
-		print Dumper(${$exp}[0])."\n";
+		$exp_counter ++;
+		#if ($exp_counter>2) { last; } #limit for debugging purposes...
+		print "---Experiment $exp_counter:".${$exp}[0]."\n";
 		$filterClause = "IndicatesSignalFor(from-link)=?";
 		$fields = 'IndicatesSignalFor(from-link) IndicatesSignalFor(to-link) IndicatesSignalFor(level)';
 		my @expression_data = @{$erdb->GetAll($objectNames, $filterClause, [${$exp}[0]], $fields, $count)};
@@ -243,7 +244,7 @@ sub get_expression_data_by_genome
 		    # create a data structure to store the experimental data
 		    my $data_uuid = $self->{'uuid_generator'}->create_str();
 		    push @expression_data_uuid_list, $data_uuid;
-		    print "uuid = ".$data_uuid."\n";
+		    print "---ws_id = ".$data_uuid."\n";
 		    my $exp_data = {
 			id => $data_uuid,
 			on_off_call => \%on_off_calls,
@@ -268,7 +269,7 @@ sub get_expression_data_by_genome
 		    };
 		    my $object_metadata = $ws->save_object($workspace_save_obj_params);
 		    $status = $status."  -> saving data for experiment '${$exp}[0]' to your workspace with ID:$data_uuid\n";
-		    print Dumper($object_metadata)."\n";
+		    #print Dumper($object_metadata)."\n";
 		    #print "DATA:\n".$encoded_json_data."\n";
 		} else {
 		    $status .= "  -> warning - no gene expression data found for experiment '${$exp}[0]'.\n";
@@ -301,7 +302,7 @@ sub get_expression_data_by_genome
 	    };
 	    #print "DATA:\n".$encoded_json_data_collection."\n";
 	    my $object_metadata = $ws->save_object($workspace_save_obj_params);
-	    print Dumper($object_metadata)."\n";
+	    print "---Expression Data Collection:\n".Dumper($object_metadata)."\n";
 	    
 	    $status = $status."  -> saving data for the collection of experiments with ID:$expression_data_collection_id\n";
 	    $status = "SUCCESS.\n".$status;
@@ -684,7 +685,7 @@ sub change_regulatory_network_namespace
 
 =head2 create_prom_constraints
 
-  $status, $prom_constraint_id = $obj->create_prom_constraints($e_id, $r_id, $workspace_name, $token)
+  $status, $prom_constraint_id = $obj->create_prom_constraints($e_id, $r_id, $a_id, $workspace_name, $token)
 
 =over 4
 
@@ -695,12 +696,14 @@ sub change_regulatory_network_namespace
 <pre>
 $e_id is an expression_data_collection_id
 $r_id is a regulatory_network_id
+$a_id is a genome_annotation_id
 $workspace_name is a workspace_name
 $token is an auth_token
 $status is a status
 $prom_constraint_id is a prom_constraint_id
 expression_data_collection_id is a string
 regulatory_network_id is a string
+genome_annotation_id is a string
 workspace_name is a string
 auth_token is a string
 status is a string
@@ -714,12 +717,14 @@ prom_constraint_id is a string
 
 $e_id is an expression_data_collection_id
 $r_id is a regulatory_network_id
+$a_id is a genome_annotation_id
 $workspace_name is a workspace_name
 $token is an auth_token
 $status is a status
 $prom_constraint_id is a prom_constraint_id
 expression_data_collection_id is a string
 regulatory_network_id is a string
+genome_annotation_id is a string
 workspace_name is a string
 auth_token is a string
 status is a string
@@ -744,11 +749,12 @@ using methods from the FBAModeling Service.
 sub create_prom_constraints
 {
     my $self = shift;
-    my($e_id, $r_id, $workspace_name, $token) = @_;
+    my($e_id, $r_id, $a_id, $workspace_name, $token) = @_;
 
     my @_bad_arguments;
     (!ref($e_id)) or push(@_bad_arguments, "Invalid type for argument \"e_id\" (value was \"$e_id\")");
     (!ref($r_id)) or push(@_bad_arguments, "Invalid type for argument \"r_id\" (value was \"$r_id\")");
+    (!ref($a_id)) or push(@_bad_arguments, "Invalid type for argument \"a_id\" (value was \"$a_id\")");
     (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
     (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
     if (@_bad_arguments) {
@@ -779,20 +785,48 @@ sub create_prom_constraints
     }
     # check if the regulatory network data from a workspace exists
     $get_object_params->{id}=$r_id;
+    $get_object_params->{type}="Unspecified";
     my $r_exists = $ws->has_object($get_object_params);
     if(!$r_exists) {
 	$status = "FAILURE - no regulatory network data with ID $r_id found!\n".$status;
     }
+    # check if the annotation data from a workspace exists
+    $get_object_params->{id}=$a_id;
+    $get_object_params->{type}="Annotation";
+    my $a_exists = $ws->has_object($get_object_params);
+    if(!$a_exists) {
+	$status = "FAILURE - no genome annotation data with ID $a_id found!\n".$status;
+    }
     
     # if both data sets exist, then pull them down
     my $found_error;
-    if($e_exists && $r_exists) {
+    if($e_exists && $r_exists && $a_exists) {
+	
+	# an Annotation object will have a 'features' key that lists the feature IDs in kbase
+	# space, with a local UUID for internal mapping with the annotation object
+	# here, we create the ID to UUID mapping based on the genome annotation object    
+	my $id_2_uuid = {};
+	$get_object_params->{id}=$a_id;
+	$get_object_params->{type}="Annotation";
+	my $annot = $ws->get_object($get_object_params)->{data};
+	my $feature_counter = 0;
+	my $annot_uuid = $annot->{_wsUUID};
+	my $features = $annot->{features};
+	foreach my $f (@$features) {
+	    $id_2_uuid->{$f->{id}} = $f->{uuid};
+	    $feature_counter++;
+	}
+	print "UUIS:$annot_uuid\n";
+	$status .= "  -> retrieved genome annotation with $feature_counter features.\n";
+	$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
+	
 	
 	# a regulatory network is a list where each element is a list in the form [TF, target, p1, p2]
 	# it is initially parsed in from the workspace object, at which point p1 and p2 are computed
 	my $regulatory_network = [];
 	
 	$get_object_params->{id}=$r_id;
+	$get_object_params->{type}="Unspecified";
 	my $regnet = $ws->get_object($get_object_params)->{data};
 	my @lines = split /\n/, $regnet;
 	my $reg_net_interaction_counter = 0;
@@ -821,6 +855,7 @@ sub create_prom_constraints
 	# ]
 	my $expression_data_on_off_calls = [];
 	$get_object_params->{id}=$e_id;
+	$get_object_params->{type}="Unspecified";
 	my $exp_collection = $ws->get_object($get_object_params);
 	my $expression_data_id_list = $exp_collection->{data}->{expression_data};
 	$status .= "  -> retrieved expression data collection with ".scalar(@$expression_data_id_list)." experiments.\n";
@@ -848,11 +883,11 @@ sub create_prom_constraints
 	    # compute the interaction probability map; this is the central component of a prom model
 	    # Note that currently there is no annotation object used.  How do we get it?  I don't see why we even need it to be honest?? Shouldn't
 	    # the Prom model be defined automatically in terms of feature ids, and then only later is that mapped to rxns or other model internals?
-	    my ($computation_log, $tfMap) = computeInteractionProbabilities($regulatory_network, $expression_data_on_off_calls);
+	    my ($computation_log, $tfMap) = computeInteractionProbabilities($regulatory_network, $expression_data_on_off_calls, $id_2_uuid);
 	    $status .= $computation_log;
 	    $status .= "  -> computed regulation interaction probabilities\n";
 	    $status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
-	   # print Dumper($tfMap)."\n";
+	    # print Dumper($tfMap)."\n";
 	    
 	    # actually create the prom model object (note that it is misnamed in ModelSEED!!! should be a constraints object, not
 	    # a model object)
@@ -885,7 +920,7 @@ sub create_prom_constraints
 		compressed => 0,
 		retrieveFromURL => 0,
 	    };
-	    my $object_metadata = $ws->save_object($workspace_save_obj_params);
+	    my $object_metadata = '';#$ws->save_object($workspace_save_obj_params);
 	    $status = $status."  -> saving the new PromModelConstraints object ID:$prom_constraint_id\n";
 	    $status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
 	    $status = "SUCCESS.\n".$status;
@@ -1242,7 +1277,38 @@ a string
 
 =item Description
 
-A workspace ID for the annotation object in a user's workpace
+A workspace UUID for the annotation object in a user's workpace
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a string
+</pre>
+
+=end html
+
+=begin text
+
+a string
+
+=end text
+
+=back
+
+
+
+=head2 genome_annotation_id
+
+=over 4
+
+
+
+=item Description
+
+A workspace ID for the annotation object in a user's workspace - is this different than the UUID??
 
 
 =item Definition
