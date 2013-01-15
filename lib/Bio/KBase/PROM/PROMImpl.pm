@@ -816,7 +816,7 @@ sub create_prom_constraints
 	    $id_2_uuid->{$f->{id}} = $f->{uuid};
 	    $feature_counter++;
 	}
-	print "UUIS:$annot_uuid\n";
+	print "annotation retrieved; UUID:$annot_uuid\n";
 	$status .= "  -> retrieved genome annotation with $feature_counter features.\n";
 	$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
 	
@@ -837,6 +837,8 @@ sub create_prom_constraints
 	    if( scalar(@ids) != 2 ) { $status = "ERROR - malformed line in regulatory network data: $line\n".$status; last; }
 	    push @$regulatory_network, [$ids[0],$ids[1],-1,-1];
 	}
+	
+	print "reg network found, $reg_net_interaction_counter interactions\n";
 	$status .= "  -> retrieved regulatory network with $reg_net_interaction_counter regulatory interactions.\n";
 	$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
 	
@@ -861,9 +863,10 @@ sub create_prom_constraints
 	$status .= "  -> retrieved expression data collection with ".scalar(@$expression_data_id_list)." experiments.\n";
 	$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
 	#loop through each experiment
-	my $n_features = -1; my $output_list = {};
+	my $n_features = -1; my $output_list = {}; my $exp_counter = 0;
 	foreach my $expression_data_id (@$expression_data_id_list) {
-	    
+	    $exp_counter++;
+	    print "exp data ( $exp_counter ) lookup: $expression_data_id \n";
 	    $get_object_params->{id}=$expression_data_id;
 	    my $exp_data = $ws->get_object($get_object_params)->{data};
 	    
@@ -900,7 +903,7 @@ sub create_prom_constraints
 	    $prom_constraint_id = $self->{'uuid_generator'}->create_str();
 	    my $prom_constraints = {
 		    id => $prom_constraint_id,
-		    annotation_uuid => '',
+		    annotation_uuid => $annot_uuid,
 		    transcriptionFactorMaps => $tfMap,
 		    expression_data_collection_id => $e_id
 	    };
@@ -920,7 +923,7 @@ sub create_prom_constraints
 		compressed => 0,
 		retrieveFromURL => 0,
 	    };
-	    my $object_metadata = '';#$ws->save_object($workspace_save_obj_params);
+	    my $object_metadata = $ws->save_object($workspace_save_obj_params);
 	    $status = $status."  -> saving the new PromModelConstraints object ID:$prom_constraint_id\n";
 	    $status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
 	    $status = "SUCCESS.\n".$status;
