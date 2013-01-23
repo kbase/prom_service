@@ -16,7 +16,8 @@ my $workspace_name="workspace_1";
 my $token = Bio::KBase::AuthToken->new(user_id => $user_id, password => $password);
 
 #boot up a workspace client
-my $workspace_url = 'http://bio-data-1.mcs.anl.gov/services/fba_gapfill';
+#my $workspace_url = 'http://bio-data-1.mcs.anl.gov/services/fba_gapfill';
+my $workspace_url = 'http://localhost:7058';
 my $ws = Bio::KBase::workspaceService::Client->new($workspace_url);
 my $object;
 
@@ -76,7 +77,7 @@ my $pmodel = ModelSEED::MS::PROMModel->new(
 );
 
 print Dumper($pmodel)."\n";
-
+$ws->save_object({"id"=>"kb|g.372.pm.1", "type"=>"PROMModel", "data"=>$pmodel->serializeToDB(),     "auth" => $token->token, "replace"=>1, "workspace"=>"workspace_1"});
 
 # = [
 #          'kb|g.372',

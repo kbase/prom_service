@@ -33,9 +33,6 @@ use Bio::KBase::ERDB_Service::Client;
 use Bio::KBase::Regulation::Client;
 use Bio::KBase::workspaceService::Client;
 use Bio::KBase::PROM::Util qw(computeInteractionProbabilities);
-
-# where is ModelSEED in the kbase path???
-use lib "/home/msneddon/Desktop/ModelSEED_ENVIRONMENT/ModelSEED/lib";
 use ModelSEED::MS::PROMModel;
 
 use Data::Dumper;
@@ -55,40 +52,58 @@ sub new
     #BEGIN_CONSTRUCTOR
     
     #load a configuration file to determine where all the services live
-    my $c = Config::Simple->new();
-    $c->read("deploy.cfg");
-    
-    # connect to various kbase services that we need
-    my $erdb_url = $c->param("prom_service.erdb");
-    if($erdb_url) {
+    my %params;
+    if ((my $e = $ENV{KB_DEPLOYMENT_CONFIG}) && -e $ENV{KB_DEPLOYMENT_CONFIG})
+    {
+	my $service = $ENV{KB_SERVICE_NAME};
+	my $c = Config::Simple->new();
+	$c->read($e);
+	my @params = qw(erdb regulation workspace scratch-space);
+	for my $p (@params)
+	{
+	  	my $v = $c->param("$service.$p");
+
+	    if ($v)
+	    {
+		$params{$p} = $v;
+	    }
+	}
+    }
+
+    if (defined $params{"erdb"}) {
+	my $erdb_url = $params{"erdb"};
 	$self->{'erdb'} = Bio::KBase::ERDB_Service::Client->new($erdb_url);
-	print "Connecting ERDB Service client  to server: $erdb_url\n";
-    } else {
-	die "ERROR STARTING SERVICE! prom_config.ini file does not exist, or does not contain 'service-urls.erdb' variable.\n";
+	print STDERR "Connecting ERDB Service client to server: $erdb_url\n";
     }
-    my $reg_url = $c->param("prom_service.regulation");
-    if($reg_url) {
+    else {
+	print STDERR "ERDB Service configuration not found\n";
+    }
+
+    if (defined $params{"regulation"}) {
+	my $reg_url = $params{"regulation"};
 	$self->{'regulation'} = Bio::KBase::Regulation::Client->new($reg_url);
-	print "Connecting Regulation Service client  to server: $reg_url\n";
-    } else {
-	die "ERROR STARTING SERVICE! prom_config.ini file does not exist, or does not contain 'service-urls.regulation' variable.\n";
-	
+	print STDERR "Connecting Regulation Service client  to server: $reg_url\n";
     }
-    my $workspace_url = $c->param("prom_service.workspace");
-    if($workspace_url) {
+    else {
+	print STDERR "Regulation Service configuration not found\n";
+    }
+	
+    if (defined $params{"workspace"}) {
+	my $workspace_url = $params{"workspace"};
 	$self->{'workspace'} = Bio::KBase::workspaceService::Client->new($workspace_url);
-	print "Connecting Workspace Service client to server : $workspace_url\n";
-    } else {
-	die "ERROR STARTING SERVICE! prom_config.ini file does not exist, or does not contain 'service-urls.workspace' variable.\n";
+	print STDERR "Connecting Workspace Service client to server : $workspace_url\n";
+    }
+    else {
+	print STDERR "Workspace Service configuration not found\n";
     }
     
-    # find some scratch space we can use when processing data
-    my $scratch_space = $c->param("prom_service.scratch-space");
-    if($scratch_space) {
+    if (defined $params{"scratch-space"}) {
+	my $scratch_space = $params{"scratch-space"};
 	$self->{'scratch_space'} = $scratch_space;
-	print "Scratch space for temporary files is set to : $scratch_space\n";
-    } else {
-	die "ERROR STARTING SERVICE! prom_confg.ini file does not exist, or does not contain 'local-paths.scratch-space' variable.\n";
+	print STDERR "Scratch space for temporary files is set to : $scratch_space\n";
+    }
+    else {
+	print STDERR "Scratch space configuration not found\n";
     }
     
     $self->{'uuid_generator'} = new Data::UUID;

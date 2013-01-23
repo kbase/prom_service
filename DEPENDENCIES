@@ -2,5 +2,5 @@ typecomp
 erdb_service
 regprecise
 workspace_service
-auth_service
+auth
 kb_model_seed
