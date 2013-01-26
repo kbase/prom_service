@@ -1,18 +1,18 @@
 OVERVIEW
 -----------------------------------------
-This service enables the creation of FBA model objects which include constraints based on regulatory
+This service enables the creation of FBA model constraint objects that are based on regulatory
 networks and expression data, as described in [1].  Constraints are constructed by either automatically
 aggregating necessary information from the CDS (if available for a given genome), or by adding user
 expression and regulatory data.  PROM provides the capability to simulate transcription factor knockout
-phenotypes.  PROM model objects are created in a user's workspace, and can be operated on and simulated
-with the KBase FBA Modeling Service.
+phenotypes.  PROM model constraint objects are created in a user's workspace, and can be operated on and
+used in conjunction with an FBA model with the KBase FBA Modeling Service.
 
 [1] Chandrasekarana S. and Price ND. Probabilistic integrative modeling of genome-scale metabolic and
 regulatory networks in Escherichia coli and Mycobacterium tuberculosis. PNAS (2010) 107:17845-50.
 
 
 
-VERSION: 0.0.1 (Released 1/XX/2013)
+VERSION: 0.0.1 (Released 1/28/2013)
 ------------------------------------------
 NEW FEATURES:
 -This is the first public release of the PROM service, all features are new.
@@ -21,4 +21,5 @@ UPDATED FEATURES / MAJOR BUG FIXES:
 -none.
 
 ANTICIPATED FUTURE DEVELOPMENTS:
--
+-Move expression data and regulation network manipulation methods out of this
+service and into the regulation service and future expression data service

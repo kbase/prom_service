@@ -442,97 +442,103 @@ sub get_regulatory_network_by_genome
     # get a regulomeModelId based on a kbase genome ID
     my $regulome_model_id = '';
     my $regulomes = $reg->getRegulomeModelsByGenomeId($genome_id);
-    my $n_regulomes = scalar @{$regulomes};
-    if ($n_regulomes == 0) {
-	$status = "FAILURE - no regulome models exist for genome $genome_id\n".$status;
-    } else {
-	$status .= "  -> found $n_regulomes regulome model(s) for genome $genome_id\n";
-	$status .= "  -> possible models are :\n";
-	my $max_regulon_count = -1;
-	foreach my $r (@$regulomes) {
-	    $status .= "       -".$r->{regulomeModelId}." (regulomeSource:".$r->{regulomeSource}.", tfRegulonCount:".$r->{tfRegulonCount}.")\n";
-	    if ($r->{tfRegulonCount} > $max_regulon_count) {
-		$max_regulon_count = $r->{tfRegulonCount};
-		$regulome_model_id = $r->{regulomeModelId};
-	    }
-	}
-	$status .= "  -> selected regulome model with the most regulons ($regulome_model_id)\n"
-    }
     
-    # actually build the network if we found a regulome
-    if($regulome_model_id ne '') {
+    if(defined $regulomes) {
 	
-	#as per PROM.spec, this object is an array of hashes, where each hash
-	#is a regulatory interaction consisting of keys TF, target, probTTonGivenTFoff, and probTTonGivenTFon
-	my $regulatory_network = [];
-	# flat file version of the regulatory network, needed until workspace service handles lists...
-	my $regulatory_network_flat = '';
-	my $interactionCounter = 0;
-	
-	my $stats = $reg->getRegulonModelStats($regulome_model_id);
-	
-	foreach my $regulon_stat (@$stats) {
-	    # fetch each regulon model, which is comprised of a set of regulators and a set of operons
-	    my $regulonModel = $reg->getRegulonModel($regulon_stat->{regulonModelId});
-    
-	    # grab the kbase ids of each regulator for this regulon
-	    my $regulators = $regulonModel->{regulators};
-	    my @regulator_ids;
-	    foreach my $r (@$regulators) { push @regulator_ids, $r->{regulatorId}; }
-    
-	    # loop through each gene of each operon regulated by the regulators, and build the network
-	    # of pair-wise regulatory interactions
-	    my $operons    = $regulonModel->{operons};
-	    foreach my $opr (@$operons) {
-	        foreach my $gene (@{$opr->{genes}}) {
-	            foreach my $reg_id (@regulator_ids) {
-	                my $regulatory_interaction = {
-	                                TF => $reg_id,
-	                                target => $gene->{geneId},
-	                                probTTonGivenTFoff => '',
-	                                probTTonGivenTFon => '',
-	                                };
-	                push @$regulatory_network, $regulatory_interaction;
-			$regulatory_network_flat .= $reg_id."\t".$gene->{geneId}."\n";
-			$interactionCounter++;
-	            }
-	        }
-	    }
-	}
-	$status .= "  -> compiled regulatory network with $interactionCounter regulatory interactions\n";
-	
-	# if we were able to populate the network, then save it to workspace services 
-	if($interactionCounter > 0) {
-	    # create UUID for the workspace object
-	    $regulatory_network_id = $self->{'uuid_generator'}->create_str();
-	    
-	    # encode the regulatory network as a JSON
-	    my $encoded_json_reg_network = encode_json $regulatory_network;
-	    #print "DATA:\n".$encoded_json_reg_network."\n";
-	    #print "DATA(FLAT):\n".$regulatory_network_flat."\n";
-	    
-	    # save the collection to the workspace
-	    my $workspace_save_obj_params = {
-		id => $regulatory_network_id,
-		type => "Unspecified",
-		data => $regulatory_network_flat, #$encoded_json_reg_network,
-		workspace => $workspace_name,
-		command => "Bio::KBase::PROM::get_regulatory_network_by_genome",
-		auth => $token,
-		json => 0,
-		compressed => 0,
-		retrieveFromURL => 0,
-	    };
-	    
-	    #print Dumper($workspace_save_obj_params)."\n";
-	    my $object_metadata = $ws->save_object($workspace_save_obj_params);
-	    #print Dumper($object_metadata)."\n";
-	    $status = $status."  -> saving the regulatory network to your workspace with ID:$regulatory_network_id\n";
-	    $status = "SUCCESS.\n".$status;
-
+	my $n_regulomes = scalar @{$regulomes};
+	if ($n_regulomes == 0) {
+	    $status = "FAILURE - no regulome models exist for genome $genome_id\n".$status;
 	} else {
-	    $status = "FAILURE - no regulatory interactions found for \n".$status;
+	    $status .= "  -> found $n_regulomes regulome model(s) for genome $genome_id\n";
+	    $status .= "  -> possible models are :\n";
+	    my $max_regulon_count = -1;
+	    foreach my $r (@$regulomes) {
+		$status .= "       -".$r->{regulomeModelId}." (regulomeSource:".$r->{regulomeSource}.", tfRegulonCount:".$r->{tfRegulonCount}.")\n";
+		if ($r->{tfRegulonCount} > $max_regulon_count) {
+		    $max_regulon_count = $r->{tfRegulonCount};
+		    $regulome_model_id = $r->{regulomeModelId};
+		}
+	    }
+	    $status .= "  -> selected regulome model with the most regulons ($regulome_model_id)\n"
 	}
+	
+	# actually build the network if we found a regulome
+	if($regulome_model_id ne '') {
+	    
+	    #as per PROM.spec, this object is an array of hashes, where each hash
+	    #is a regulatory interaction consisting of keys TF, target, probTTonGivenTFoff, and probTTonGivenTFon
+	    my $regulatory_network = [];
+	    # flat file version of the regulatory network, needed until workspace service handles lists...
+	    my $regulatory_network_flat = '';
+	    my $interactionCounter = 0;
+	    
+	    my $stats = $reg->getRegulonModelStats($regulome_model_id);
+	    
+	    foreach my $regulon_stat (@$stats) {
+		# fetch each regulon model, which is comprised of a set of regulators and a set of operons
+		my $regulonModel = $reg->getRegulonModel($regulon_stat->{regulonModelId});
+	
+		# grab the kbase ids of each regulator for this regulon
+		my $regulators = $regulonModel->{regulators};
+		my @regulator_ids;
+		foreach my $r (@$regulators) { push @regulator_ids, $r->{regulatorId}; }
+	
+		# loop through each gene of each operon regulated by the regulators, and build the network
+		# of pair-wise regulatory interactions
+		my $operons    = $regulonModel->{operons};
+		foreach my $opr (@$operons) {
+		    foreach my $gene (@{$opr->{genes}}) {
+			foreach my $reg_id (@regulator_ids) {
+			    my $regulatory_interaction = {
+					    TF => $reg_id,
+					    target => $gene->{geneId},
+					    probTTonGivenTFoff => '',
+					    probTTonGivenTFon => '',
+					    };
+			    push @$regulatory_network, $regulatory_interaction;
+			    $regulatory_network_flat .= $reg_id."\t".$gene->{geneId}."\n";
+			    $interactionCounter++;
+			}
+		    }
+		}
+	    }
+	    $status .= "  -> compiled regulatory network with $interactionCounter regulatory interactions\n";
+	    
+	    # if we were able to populate the network, then save it to workspace services 
+	    if($interactionCounter > 0) {
+		# create UUID for the workspace object
+		$regulatory_network_id = $self->{'uuid_generator'}->create_str();
+		
+		# encode the regulatory network as a JSON
+		my $encoded_json_reg_network = encode_json $regulatory_network;
+		#print "DATA:\n".$encoded_json_reg_network."\n";
+		#print "DATA(FLAT):\n".$regulatory_network_flat."\n";
+		
+		# save the collection to the workspace
+		my $workspace_save_obj_params = {
+		    id => $regulatory_network_id,
+		    type => "Unspecified",
+		    data => $regulatory_network_flat, #$encoded_json_reg_network,
+		    workspace => $workspace_name,
+		    command => "Bio::KBase::PROM::get_regulatory_network_by_genome",
+		    auth => $token,
+		    json => 0,
+		    compressed => 0,
+		    retrieveFromURL => 0,
+		};
+		
+		#print Dumper($workspace_save_obj_params)."\n";
+		my $object_metadata = $ws->save_object($workspace_save_obj_params);
+		#print Dumper($object_metadata)."\n";
+		$status = $status."  -> saving the regulatory network to your workspace with ID:$regulatory_network_id\n";
+		$status = "SUCCESS.\n".$status;
+    
+	    } else {
+		$status = "FAILURE - no regulatory interactions found for $genome_id\n".$status;
+	    }
+	}
+    } else {
+	$status = "FAILURE - no regulatory interactions found for $genome_id\n".$status;
     }
     
     #END get_regulatory_network_by_genome
@@ -960,7 +966,7 @@ sub create_prom_constraints
 	    print $encoded_json_PromModelConstraints."\n";
 	    my $workspace_save_obj_params = {
 		id => $prom_constraint_id,
-		type => "Unspecified",
+		type => "PromConstraints",
 		data => $encoded_json_PromModelConstraints,
 		workspace => $workspace_name,
 		command => "Bio::KBase::PROM::create_prom_constraints",
