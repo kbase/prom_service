@@ -55,7 +55,6 @@ compile-typespec:
 		--client Bio::KBase::$(SERVICE_NAME)::Client \
 		--py biokbase/$(SERVICE_NAME)/Client \
 		--js javascript/$(SERVICE_NAME)/Client \
-		--scripts scripts \
 		$(SERVICE_NAME).spec lib
 	rm -r Bio # For some strange reason, compile_typespec always creates this directory in the root dir!
 
