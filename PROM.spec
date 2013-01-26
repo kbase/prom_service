@@ -11,6 +11,10 @@ used in conjunction with an FBA model with the KBase FBA Modeling Service.
 [1] Chandrasekarana S. and Price ND. Probabilistic integrative modeling of genome-scale metabolic and
 regulatory networks in Escherichia coli and Mycobacterium tuberculosis. PNAS (2010) 107:17845-50.
 
+AUTHORS:
+Michael Sneddon (mwsneddon@lbl.gov)
+Matt DeJongh (dejongh@hope.edu)
+
 created 11/27/2012 - msneddon
 */
 module PROM
@@ -20,6 +24,9 @@ module PROM
     /* * SIMPLE ID AND STRING TYPES **/
     /* ************************************************************************************* */
 
+    /* indicates true or false values, false <= 0, true >=1 */
+    typedef int bool;
+    
     /* A KBase ID is a string starting with the characters "kb|".  KBase IDs are typed. The types are
     designated using a short string.  KBase IDs may be hierarchical.  See the standard KBase documentation
     for more information. */
@@ -239,13 +246,38 @@ module PROM
     */
     funcdef change_regulatory_network_namespace(regulatory_network_id regulatory_network_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, regulatory_network_id new_regulatory_network_id);
     
+    
     /*
-    Once you have loaded gene expression data and a regulatory network for a specific genome, then
-    you can use this method to create add PROM contraints to the FBA model, thus creating a PROM model.  This method will then return
-    you the ID of the PROM model object created in your workspace.  The PROM Model object can then be simulated, visualized, edited, etc.
-    using methods from the FBAModeling Service.
+    Named parameters for 'create_prom_constraints' method.
+    
+        prom_constraint_id new_prom_constraint_id  - (required) ID of the new prom constraints object that will be created
+        bool overwrite                             - (optional) true to overwrite the prom model, false to exit on error if you
+                                                     are attempting to overwrite an existing model.  Default=false.
+        expression_data_collection_id e_id         - (required) the workspace ID of the expression data collection needed to
+                                                     build the PROM constraints.
+        regulatory_network_id r_id                 - the workspace ID of the regulatory network data to use
+        genome_annotation_id a_id                  - the workspace ID of the genome annotation to use
+        workspace_name workspace_name              - the name of the workspace to use
+        auth_token token                           - the auth token that has permission to write in the specified workspace
     */
-    funcdef create_prom_constraints(expression_data_collection_id e_id, regulatory_network_id r_id, genome_annotation_id a_id, workspace_name workspace_name, auth_token token) returns (status status, prom_constraint_id prom_constraint_id);
+    typedef structure {
+        prom_constraint_id new_prom_constraint_id;
+        bool overwrite;
+        expression_data_collection_id e_id;
+        regulatory_network_id r_id;
+        genome_annotation_id a_id;
+        workspace_name workspace_name;
+        auth_token token;
+    } create_prom_constraints_parameters;
+    
+    /*
+    This method creates a set of Prom constraints for a given genome annotation based on a regulatory network
+    and a collection of gene expression data stored on a workspace.  Parameters are specified in the
+    create_prom_constraints_parameters object.  A status object is returned indicating success or failure along
+    with a message on what went wrong or statistics on the retrieved objects.  The Prom constraints can then
+    be used in conjunction with an FBA model using FBA Model Services.
+    */
+    funcdef create_prom_constraints(create_prom_constraints_parameters params) returns (status status);
     
     
     
@@ -257,26 +289,4 @@ module PROM
     /* funcdef add_regulatory_network(workspace_name, regulatory_network); */
     
     
-    
-    /* ********************** random old notes from previous iterations of this API, so ignore beyond this point ******************* */
-    /* This method allows the end user to upload gene expression data directly to a workspace.  This is useful if, for
-    instance, the gene expression data needed is private or not yet uploaded to the CDM.  Note that it is critical that
-    the gene ids are the same as the ids used in the FBA model!
-    funcdef load_expression_data(boolean_gene_expression_data_collection data) returns (status,expression_data_collection_id); */
-    /* Given several expression data collections, this method merges them into a single collection in the workspace, and returns
-    the collection id.  This is useful for building a collection which includes both CDM data and data from multiple other sources,
-    as the create_prom_model method does not allow multiple expression data collections.
-    NOT YET IMPLEMENTED
-    funcdef merge_expression_data_collections(list <expression_data_collection_id> collections) returns (status,expression_data_collection_id);
-    */
-    /* This method retrieves regulatory network data from the KBase Regulation service based on the Regulome model ID.  This
-    model must be defined for the same exact genome with which you are constructing the FBA model.  If a model does not exist for
-    your genome, the you have to build it yourself using the Regulation service.  See the Regulation service for more information on
-    how to retrieve a list of models for your genome, and how to propagate existing models to build a new model for your genome. 
-    funcdef retrieve_regulatory_network_data(regulomeModelId id) returns (status,regulatory_network_id);*/
-    /* Given your own regulatory network for a given genome, load it into the workspace so that it can be used to construct a PROM
-    model. Make sure your IDs for each gene are consistant with your FBA model and your gene expression data! 
-    funcdef load_regulatory_network_data(regulomeModelId id) returns (status,regulatory_network_id);*/
-    
-
 };

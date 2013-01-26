@@ -111,7 +111,7 @@ deploy-docs: build-docs
 	cp docs/*.html $(SERVICE_DIR)/webroot/.
 
 # deploys all libraries and scripts needed to start the service
-deploy-service: deploy-service-libs deploy-service-scripts
+deploy-service: deploy-service-libs deploy-service-scripts deploy-debug-start-stop-scripts
 
 deploy-service-libs:
 	mkdir -p $(TARGET)/lib/Bio/KBase/$(SERVICE_NAME)
@@ -128,10 +128,12 @@ deploy-service-scripts:
 	tpage $(SERV_TPAGE_ARGS) service/stop_service.tt > $(TARGET)/services/$(SERV_SERVICE)/stop_service; \
 	chmod +x $(TARGET)/services/$(SERV_SERVICE)/stop_service; \
 	tpage $(SERV_TPAGE_ARGS) service/process.tt > $(TARGET)/services/$(SERV_SERVICE)/process.$(SERV_SERVICE); \
-	chmod +x $(TARGET)/services/$(SERV_SERVICE)/process.$(SERV_SERVICE); 
+	chmod +x $(TARGET)/services/$(SERV_SERVICE)/process.$(SERV_SERVICE);  ## what is this file for?
+	
+	
 
 # creates start/stop/reboot scripts and copies them to the deployment target
-deploy-debug-scripts:
+deploy-debug-start-stop-scripts:
 	# create a debug start script that is not daemonized
 	echo '#!/bin/sh' > ./debug_start_service
 	echo 'export PERL5LIB=$$PERL5LIB:$(TARGET)/lib' >> ./debug_start_service
@@ -139,10 +141,14 @@ deploy-debug-scripts:
 	echo "export FILE_TYPE_DEF_FILE=$(FILE_TYPE_DEF_FILE)" >> ./debug_start_service
 	echo "$(DEPLOY_RUNTIME)/bin/starman --listen :$(SERVICE_PORT) --workers 1 \\" >> ./debug_start_service
 	echo "    $(TARGET)/lib/$(SERVICE_PSGI_FILE)" >> ./debug_start_service
+	chmod +x debug_start_service;
+	cp debug_start_service $(TARGET)/services/$(SERV_SERVICE)/.
 	# Finally create a script to reboot the service by stopping, redeploying the service, and starting again
 	echo '#!/bin/sh' > ./reboot_service
 	echo '# auto-generated script to stop the service, redeploy service implementation, and start the servce' >> ./reboot_service
 	echo "./stop_service\ncd $(ROOT_DEV_MODULE_DIR)\nmake deploy-service-libs\ncd -\n./start_service" >> ./reboot_service
+	chmod +x reboot_service; 
+	cp reboot_service $(TARGET)/services/$(SERV_SERVICE)/.
 
 undeploy:
 	rm -rfv $(SERVICE_DIR)
