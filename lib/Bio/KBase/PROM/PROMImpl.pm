@@ -23,6 +23,10 @@ used in conjunction with an FBA model with the KBase FBA Modeling Service.
 [1] Chandrasekarana S. and Price ND. Probabilistic integrative modeling of genome-scale metabolic and
 regulatory networks in Escherichia coli and Mycobacterium tuberculosis. PNAS (2010) 107:17845-50.
 
+AUTHORS:
+Michael Sneddon (mwsneddon@lbl.gov)
+Matt DeJongh (dejongh@hope.edu)
+
 created 11/27/2012 - msneddon
 
 =cut
@@ -33,7 +37,7 @@ use Bio::KBase::ERDB_Service::Client;
 use Bio::KBase::Regulation::Client;
 use Bio::KBase::workspaceService::Client;
 use Bio::KBase::PROM::Util qw(computeInteractionProbabilities);
-use ModelSEED::MS::PROMModel;
+#use ModelSEED::MS::PROMModel;
 
 use Data::Dumper;
 use Config::Simple;
@@ -53,16 +57,19 @@ sub new
     
     #load a configuration file to determine where all the services live
     my %params;
-    if ((my $e = $ENV{KB_DEPLOYMENT_CONFIG}) && -e $ENV{KB_DEPLOYMENT_CONFIG})
+    #if ((my $e = $ENV{KB_DEPLOYMENT_CONFIG}) && -e $ENV{KB_DEPLOYMENT_CONFIG})
+    # I have to do this because the KBase deployment process is broken!!!
+    if ((my $e = $ENV{PROM_DEPLOYMENT_CONFIG}) && -e $ENV{PROM_DEPLOYMENT_CONFIG})
     {
-	my $service = $ENV{KB_SERVICE_NAME};
+	my $service = $ENV{PROM_DEPLOYMENT_SERVICE_NAME};
 	my $c = Config::Simple->new();
+	print "looking at config file: ".$e."\n";
+	print "service name: ".$service."\n";
 	$c->read($e);
 	my @params = qw(erdb regulation workspace scratch-space);
 	for my $p (@params)
 	{
-	  	my $v = $c->param("$service.$p");
-
+	    my $v = $c->param("$service.$p");
 	    if ($v)
 	    {
 		$params{$p} = $v;
@@ -700,7 +707,7 @@ sub change_regulatory_network_namespace
 
 =head2 create_prom_constraints
 
-  $status, $prom_constraint_id = $obj->create_prom_constraints($e_id, $r_id, $a_id, $workspace_name, $token)
+  $status = $obj->create_prom_constraints($params)
 
 =over 4
 
@@ -709,20 +716,24 @@ sub change_regulatory_network_namespace
 =begin html
 
 <pre>
-$e_id is an expression_data_collection_id
-$r_id is a regulatory_network_id
-$a_id is a genome_annotation_id
-$workspace_name is a workspace_name
-$token is an auth_token
+$params is a create_prom_constraints_parameters
 $status is a status
-$prom_constraint_id is a prom_constraint_id
+create_prom_constraints_parameters is a reference to a hash where the following keys are defined:
+	new_prom_constraint_id has a value which is a prom_constraint_id
+	overwrite has a value which is a bool
+	e_id has a value which is an expression_data_collection_id
+	r_id has a value which is a regulatory_network_id
+	a_id has a value which is a genome_annotation_id
+	workspace_name has a value which is a workspace_name
+	token has a value which is an auth_token
+prom_constraint_id is a string
+bool is an int
 expression_data_collection_id is a string
 regulatory_network_id is a string
 genome_annotation_id is a string
 workspace_name is a string
 auth_token is a string
 status is a string
-prom_constraint_id is a string
 
 </pre>
 
@@ -730,20 +741,24 @@ prom_constraint_id is a string
 
 =begin text
 
-$e_id is an expression_data_collection_id
-$r_id is a regulatory_network_id
-$a_id is a genome_annotation_id
-$workspace_name is a workspace_name
-$token is an auth_token
+$params is a create_prom_constraints_parameters
 $status is a status
-$prom_constraint_id is a prom_constraint_id
+create_prom_constraints_parameters is a reference to a hash where the following keys are defined:
+	new_prom_constraint_id has a value which is a prom_constraint_id
+	overwrite has a value which is a bool
+	e_id has a value which is an expression_data_collection_id
+	r_id has a value which is a regulatory_network_id
+	a_id has a value which is a genome_annotation_id
+	workspace_name has a value which is a workspace_name
+	token has a value which is an auth_token
+prom_constraint_id is a string
+bool is an int
 expression_data_collection_id is a string
 regulatory_network_id is a string
 genome_annotation_id is a string
 workspace_name is a string
 auth_token is a string
 status is a string
-prom_constraint_id is a string
 
 
 =end text
@@ -752,10 +767,11 @@ prom_constraint_id is a string
 
 =item Description
 
-Once you have loaded gene expression data and a regulatory network for a specific genome, then
-you can use this method to create add PROM contraints to the FBA model, thus creating a PROM model.  This method will then return
-you the ID of the PROM model object created in your workspace.  The PROM Model object can then be simulated, visualized, edited, etc.
-using methods from the FBAModeling Service.
+This method creates a set of Prom constraints for a given genome annotation based on a regulatory network
+and a collection of gene expression data stored on a workspace.  Parameters are specified in the
+create_prom_constraints_parameters object.  A status object is returned indicating success or failure along
+with a message on what went wrong or statistics on the retrieved objects.  The Prom constraints can then
+be used in conjunction with an FBA model using FBA Model Services.
 
 =back
 
@@ -764,14 +780,10 @@ using methods from the FBAModeling Service.
 sub create_prom_constraints
 {
     my $self = shift;
-    my($e_id, $r_id, $a_id, $workspace_name, $token) = @_;
+    my($params) = @_;
 
     my @_bad_arguments;
-    (!ref($e_id)) or push(@_bad_arguments, "Invalid type for argument \"e_id\" (value was \"$e_id\")");
-    (!ref($r_id)) or push(@_bad_arguments, "Invalid type for argument \"r_id\" (value was \"$r_id\")");
-    (!ref($a_id)) or push(@_bad_arguments, "Invalid type for argument \"a_id\" (value was \"$a_id\")");
-    (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
-    (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
+    (ref($params) eq 'HASH') or push(@_bad_arguments, "Invalid type for argument \"params\" (value was \"$params\")");
     if (@_bad_arguments) {
 	my $msg = "Invalid arguments passed to create_prom_constraints:\n" . join("", map { "\t$_\n" } @_bad_arguments);
 	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
@@ -779,8 +791,27 @@ sub create_prom_constraints
     }
 
     my $ctx = $Bio::KBase::PROM::Service::CallContext;
-    my($status, $prom_constraint_id);
+    my($status);
     #BEGIN create_prom_constraints
+    
+    # input description
+    #typedef structure {
+    #    prom_constraint_id new_prom_constraint_id;
+    #    bool overwrite;
+    #    expression_data_collection_id e_id;
+    #    regulatory_network_id r_id;
+    #    genome_annotation_id a_id;
+    #    workspace_name workspace_name;
+    #    auth_token token;
+    #} create_prom_constraints_parameters;
+    my $e_id = $params->{e_id};
+    my $r_id = $params->{r_id};
+    my $a_id = $params->{a_id};
+    my $workspace_name = $params->{workspace_name};
+    my $token = $params->{token};
+    my $prom_constraint_id ="";
+    
+    
     my $t_start = Benchmark->new;
     
     #set up return variables and fetch the workspace client handle
@@ -956,13 +987,12 @@ sub create_prom_constraints
     #END create_prom_constraints
     my @_bad_returns;
     (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
-    (!ref($prom_constraint_id)) or push(@_bad_returns, "Invalid type for return variable \"prom_constraint_id\" (value was \"$prom_constraint_id\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to create_prom_constraints:\n" . join("", map { "\t$_\n" } @_bad_returns);
 	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
 							       method_name => 'create_prom_constraints');
     }
-    return($status, $prom_constraint_id);
+    return($status);
 }
 
 
@@ -1003,6 +1033,37 @@ sub version {
 }
 
 =head1 TYPES
+
+
+
+=head2 bool
+
+=over 4
+
+
+
+=item Description
+
+indicates true or false values, false <= 0, true >=1
+
+
+=item Definition
+
+=begin html
+
+<pre>
+an int
+</pre>
+
+=end html
+
+=begin text
+
+an int
+
+=end text
+
+=back
 
 
 
@@ -1787,6 +1848,63 @@ id has a value which is a prom_constraint_id
 annotation_uuid has a value which is an annotation_uuid
 transcriptionFactorMaps has a value which is a reference to a list where each element is a tfMap
 expression_data_collection_id has a value which is an expression_data_collection_id
+
+
+=end text
+
+=back
+
+
+
+=head2 create_prom_constraints_parameters
+
+=over 4
+
+
+
+=item Description
+
+Named parameters for 'create_prom_constraints' method.
+
+    prom_constraint_id new_prom_constraint_id  - (required) ID of the new prom constraints object that will be created
+    bool overwrite                             - (optional) true to overwrite the prom model, false to exit on error if you
+                                                 are attempting to overwrite an existing model.  Default=false.
+    expression_data_collection_id e_id         - (required) the workspace ID of the expression data collection needed to
+                                                 build the PROM constraints.
+    regulatory_network_id r_id                 - the workspace ID of the regulatory network data to use
+    genome_annotation_id a_id                  - the workspace ID of the genome annotation to use
+    workspace_name workspace_name              - the name of the workspace to use
+    auth_token token                           - the auth token that has permission to write in the specified workspace
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a reference to a hash where the following keys are defined:
+new_prom_constraint_id has a value which is a prom_constraint_id
+overwrite has a value which is a bool
+e_id has a value which is an expression_data_collection_id
+r_id has a value which is a regulatory_network_id
+a_id has a value which is a genome_annotation_id
+workspace_name has a value which is a workspace_name
+token has a value which is an auth_token
+
+</pre>
+
+=end html
+
+=begin text
+
+a reference to a hash where the following keys are defined:
+new_prom_constraint_id has a value which is a prom_constraint_id
+overwrite has a value which is a bool
+e_id has a value which is an expression_data_collection_id
+r_id has a value which is a regulatory_network_id
+a_id has a value which is a genome_annotation_id
+workspace_name has a value which is a workspace_name
+token has a value which is an auth_token
 
 
 =end text

@@ -73,7 +73,7 @@ test-client:
 	# run each test
 	for t in $(CLIENT_TESTS) ; do \
 		if [ -f $$t ] ; then \
-			$(DEPLOY_RUNTIME)/bin/perl $$t ; \
+			$(DEPLOY_RUNTIME)/bin/perl -I t/client-tests $$t ; \
 			if [ $$? -ne 0 ] ; then \
 				exit 1 ; \
 			fi \
@@ -111,7 +111,7 @@ deploy-docs: build-docs
 	cp docs/*.html $(SERVICE_DIR)/webroot/.
 
 # deploys all libraries and scripts needed to start the service
-deploy-service: deploy-service-libs deploy-service-scripts deploy-debug-start-stop-scripts
+deploy-service: deploy-service-libs deploy-service-start_scripts
 
 deploy-service-libs:
 	mkdir -p $(TARGET)/lib/Bio/KBase/$(SERVICE_NAME)
@@ -119,36 +119,51 @@ deploy-service-libs:
 	cp $(TOP_DIR)/modules/$(SERVICE)/lib/Bio/KBase/$(SERVICE_NAME)/$(SERVICE_NAME)Impl.pm $(TARGET)/lib/Bio/KBase/$(SERVICE_NAME)/.
 	cp $(TOP_DIR)/modules/$(SERVICE)/lib/Bio/KBase/$(SERVICE_NAME)/Util.pm $(TARGET)/lib/Bio/KBase/$(SERVICE_NAME)/.
 	cp $(TOP_DIR)/modules/$(SERVICE)/lib/$(SERVICE_PSGI_FILE) $(TARGET)/lib/.
+	cp $(TOP_DIR)/modules/$(SERVICE)/deploy.cfg $(TARGET)/services/$(SERV_SERVICE)/.
 	mkdir -p $(SERVICE_DIR)
 	echo "deployed service for $(SERVICE)."
 
-deploy-service-scripts:
-	tpage $(SERV_TPAGE_ARGS) service/start_service.tt > $(TARGET)/services/$(SERV_SERVICE)/start_service; \
-	chmod +x $(TARGET)/services/$(SERV_SERVICE)/start_service; \
-	tpage $(SERV_TPAGE_ARGS) service/stop_service.tt > $(TARGET)/services/$(SERV_SERVICE)/stop_service; \
-	chmod +x $(TARGET)/services/$(SERV_SERVICE)/stop_service; \
-	tpage $(SERV_TPAGE_ARGS) service/process.tt > $(TARGET)/services/$(SERV_SERVICE)/process.$(SERV_SERVICE); \
-	chmod +x $(TARGET)/services/$(SERV_SERVICE)/process.$(SERV_SERVICE);  ## what is this file for?
-	
-	
-
 # creates start/stop/reboot scripts and copies them to the deployment target
-deploy-debug-start-stop-scripts:
-	# create a debug start script that is not daemonized
+deploy-service-start_scripts:
+	# First create the start script (should be a better way to do this...)
+	echo '#!/bin/sh' > ./start_service
+	echo "echo starting $(SERVICE) service." >> ./start_service
+	echo 'export PERL5LIB=$$PERL5LIB:$(TARGET)/lib' >> ./start_service
+	echo "export PROM_DEPLOYMENT_CONFIG=$(TARGET)/services/$(SERV_SERVICE)/deploy.cfg" >> ./start_service
+	echo "export PROM_DEPLOYMENT_SERVICE_NAME=$(SERV_SERVICE)" >> ./start_service
+	echo "$(DEPLOY_RUNTIME)/bin/starman --listen :$(SERVICE_PORT) --pid $(PID_FILE) --daemonize \\" >> ./start_service
+	echo "  --access-log $(ACCESS_LOG_FILE) \\" >>./start_service
+	echo "  --error-log $(ERR_LOG_FILE) \\" >> ./start_service
+	echo "  $(TARGET)/lib/$(SERVICE_PSGI_FILE)" >> ./start_service
+	echo "echo $(SERVICE_NAME) service is listening on port $(SERVICE_PORT).\n" >> ./start_service
+	# Second, create a debug start script that is not daemonized
 	echo '#!/bin/sh' > ./debug_start_service
 	echo 'export PERL5LIB=$$PERL5LIB:$(TARGET)/lib' >> ./debug_start_service
+	echo "export PROM_DEPLOYMENT_CONFIG=$(TARGET)/services/$(SERV_SERVICE)/deploy.cfg" >> ./debug_start_service
+	echo "export PROM_DEPLOYMENT_SERVICE_NAME=$(SERV_SERVICE)" >> ./debug_start_service
 	echo 'export STARMAN_DEBUG=1' >> ./debug_start_service
-	echo "export FILE_TYPE_DEF_FILE=$(FILE_TYPE_DEF_FILE)" >> ./debug_start_service
 	echo "$(DEPLOY_RUNTIME)/bin/starman --listen :$(SERVICE_PORT) --workers 1 \\" >> ./debug_start_service
 	echo "    $(TARGET)/lib/$(SERVICE_PSGI_FILE)" >> ./debug_start_service
-	chmod +x debug_start_service;
-	cp debug_start_service $(TARGET)/services/$(SERV_SERVICE)/.
+	# Third create the stop script
+	echo '#!/bin/sh' > ./stop_service
+	echo "echo trying to stop $(SERVICE) service." >> ./stop_service
+	echo "pid_file=$(PID_FILE)" >> ./stop_service
+	echo "if [ ! -f \$$pid_file ] ; then " >> ./stop_service
+	echo "\techo \"No pid file: \$$pid_file found for service $(SERVICE_NAME).\"\n\texit 1\nfi" >> ./stop_service
+	echo "pid=\$$(cat \$$pid_file)\nkill \$$pid\n" >> ./stop_service
 	# Finally create a script to reboot the service by stopping, redeploying the service, and starting again
 	echo '#!/bin/sh' > ./reboot_service
 	echo '# auto-generated script to stop the service, redeploy service implementation, and start the servce' >> ./reboot_service
 	echo "./stop_service\ncd $(ROOT_DEV_MODULE_DIR)\nmake deploy-service-libs\ncd -\n./start_service" >> ./reboot_service
-	chmod +x reboot_service; 
-	cp reboot_service $(TARGET)/services/$(SERV_SERVICE)/.
+	# Actually run the deployment of these scripts
+	chmod +x start_service stop_service reboot_service debug_start_service
+	mkdir -p $(SERVICE_DIR)
+	mkdir -p $(SERVICE_DIR)/log
+	cp start_service $(SERVICE_DIR)/
+	cp debug_start_service $(SERVICE_DIR)/
+	cp stop_service $(SERVICE_DIR)/
+	cp reboot_service $(SERVICE_DIR)/
+
 
 undeploy:
 	rm -rfv $(SERVICE_DIR)
