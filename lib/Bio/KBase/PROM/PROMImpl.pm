@@ -20,6 +20,10 @@ expression and regulatory data.  PROM provides the capability to simulate transc
 phenotypes.  PROM model constraint objects are created in a user's workspace, and can be operated on and
 used in conjunction with an FBA model with the KBase FBA Modeling Service.
 
+Note: for compatibility with the workspace service and legacy reasons, auth tokens are passed in as
+parameters rather than handled automatically by the auto-generated client/server infrastructure.  This
+will be fixed soon in one of the next builds.
+
 [1] Chandrasekarana S. and Price ND. Probabilistic integrative modeling of genome-scale metabolic and
 regulatory networks in Escherichia coli and Mycobacterium tuberculosis. PNAS (2010) 107:17845-50.
 
@@ -353,6 +357,291 @@ sub get_expression_data_by_genome
 
 
 
+=head2 create_expression_data_collection
+
+  $status, $expression_data_collection_id = $obj->create_expression_data_collection($workspace_name, $token)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
+workspace_name is a string
+auth_token is a string
+status is a string
+expression_data_collection_id is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
+workspace_name is a string
+auth_token is a string
+status is a string
+expression_data_collection_id is a string
+
+
+=end text
+
+
+
+=item Description
+
+This method creates a new, empty, expression data collection in the specified workspace. If the method was successful,
+the ID of the expression data set will be returned.  The method also returns a status message providing additional
+details of the steps that occured or a message that indicates what failed.  If the method fails, no expression
+data ID is returned.
+
+=back
+
+=cut
+
+sub create_expression_data_collection
+{
+    my $self = shift;
+    my($workspace_name, $token) = @_;
+
+    my @_bad_arguments;
+    (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
+    (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to create_expression_data_collection:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'create_expression_data_collection');
+    }
+
+    my $ctx = $Bio::KBase::PROM::Service::CallContext;
+    my($status, $expression_data_collection_id);
+    #BEGIN create_expression_data_collection
+    #END create_expression_data_collection
+    my @_bad_returns;
+    (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
+    (!ref($expression_data_collection_id)) or push(@_bad_returns, "Invalid type for return variable \"expression_data_collection_id\" (value was \"$expression_data_collection_id\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to create_expression_data_collection:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'create_expression_data_collection');
+    }
+    return($status, $expression_data_collection_id);
+}
+
+
+
+
+=head2 add_expression_data_to_collection
+
+  $status = $obj->add_expression_data_to_collection($data, $expression_data_collecion_id, $workspace_name, $token)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$data is a reference to a list where each element is a boolean_gene_expression_data
+$expression_data_collecion_id is an expression_data_collection_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+boolean_gene_expression_data is a reference to a hash where the following keys are defined:
+	id has a value which is a boolean_gene_expression_data_id
+	on_off_call has a value which is a reference to a hash where the key is a feature_id and the value is an on_off_state
+	expression_data_source has a value which is a source
+	expression_data_source_id has a value which is a source
+boolean_gene_expression_data_id is a string
+feature_id is a kbase_id
+kbase_id is a string
+on_off_state is an int
+source is a string
+expression_data_collection_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$data is a reference to a list where each element is a boolean_gene_expression_data
+$expression_data_collecion_id is an expression_data_collection_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+boolean_gene_expression_data is a reference to a hash where the following keys are defined:
+	id has a value which is a boolean_gene_expression_data_id
+	on_off_call has a value which is a reference to a hash where the key is a feature_id and the value is an on_off_state
+	expression_data_source has a value which is a source
+	expression_data_source_id has a value which is a source
+boolean_gene_expression_data_id is a string
+feature_id is a kbase_id
+kbase_id is a string
+on_off_state is an int
+source is a string
+expression_data_collection_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+
+
+=end text
+
+
+
+=item Description
+
+This method provides a way to attach a set of boolean expression data to an expression data collection object created
+in the current workspace.  Data collections can thus be composed of both CDS data and user data in this way.  The method
+returns a status message providing additional details of the steps that occured or a message that indicates what failed.
+If the method fails, then all updates to the expression_data_collection are not made, although some of the boolean gene
+expression data may have been created in the workspace (see status message for IDs of the new expession data objects).
+
+=back
+
+=cut
+
+sub add_expression_data_to_collection
+{
+    my $self = shift;
+    my($data, $expression_data_collecion_id, $workspace_name, $token) = @_;
+
+    my @_bad_arguments;
+    (ref($data) eq 'ARRAY') or push(@_bad_arguments, "Invalid type for argument \"data\" (value was \"$data\")");
+    (!ref($expression_data_collecion_id)) or push(@_bad_arguments, "Invalid type for argument \"expression_data_collecion_id\" (value was \"$expression_data_collecion_id\")");
+    (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
+    (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to add_expression_data_to_collection:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'add_expression_data_to_collection');
+    }
+
+    my $ctx = $Bio::KBase::PROM::Service::CallContext;
+    my($status);
+    #BEGIN add_expression_data_to_collection
+    #END add_expression_data_to_collection
+    my @_bad_returns;
+    (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to add_expression_data_to_collection:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'add_expression_data_to_collection');
+    }
+    return($status);
+}
+
+
+
+
+=head2 change_expression_data_namespace
+
+  $status, $expression_data_collection_id = $obj->change_expression_data_namespace($expression_data_collection_id, $new_feature_names, $workspace_name, $token)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$expression_data_collection_id is an expression_data_collection_id
+$new_feature_names is a reference to a hash where the key is a string and the value is a string
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
+expression_data_collection_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$expression_data_collection_id is an expression_data_collection_id
+$new_feature_names is a reference to a hash where the key is a string and the value is a string
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
+expression_data_collection_id is a string
+workspace_name is a string
+auth_token is a string
+status is a string
+
+
+=end text
+
+
+
+=item Description
+
+Maps the expression data collection stored in a workspace in one genome namespace to an alternate genome namespace.  This is useful,
+for instance, if expression data is available for one genome, but you intend to use it for a related genome or a genome with different
+gene calls.  If a gene in the original expression data cannot be found in the translation mapping, then it is ignored and left as is
+so that the number of features in the expression data set is not altered.  NOTE!: this is different from the default behavior of
+change_regulatory_network_namespace, which will drop all genes that are not found in the mapping.  If successful, this method
+returns the expression collection ID of the newly created expression data colleion.  This method also returns a status message indicating
+what happened or what went wrong.
+
+The mapping<string,string> new_features_names should be defined so that existing IDs are the key and the replacement IDs are the
+values stored.
+
+=back
+
+=cut
+
+sub change_expression_data_namespace
+{
+    my $self = shift;
+    my($expression_data_collection_id, $new_feature_names, $workspace_name, $token) = @_;
+
+    my @_bad_arguments;
+    (!ref($expression_data_collection_id)) or push(@_bad_arguments, "Invalid type for argument \"expression_data_collection_id\" (value was \"$expression_data_collection_id\")");
+    (ref($new_feature_names) eq 'HASH') or push(@_bad_arguments, "Invalid type for argument \"new_feature_names\" (value was \"$new_feature_names\")");
+    (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
+    (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to change_expression_data_namespace:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'change_expression_data_namespace');
+    }
+
+    my $ctx = $Bio::KBase::PROM::Service::CallContext;
+    my($status, $expression_data_collection_id);
+    #BEGIN change_expression_data_namespace
+    #END change_expression_data_namespace
+    my @_bad_returns;
+    (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
+    (!ref($expression_data_collection_id)) or push(@_bad_returns, "Invalid type for return variable \"expression_data_collection_id\" (value was \"$expression_data_collection_id\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to change_expression_data_namespace:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'change_expression_data_namespace');
+    }
+    return($status, $expression_data_collection_id);
+}
+
+
+
+
 =head2 get_regulatory_network_by_genome
 
   $status, $regulatory_network_id = $obj->get_regulatory_network_by_genome($genome_id, $workspace_name, $token)
@@ -603,7 +892,15 @@ status is a string
 =item Description
 
 Maps the regulatory network stored in a workspace in one genome namespace to an alternate genome namespace.  This is useful,
-for instance, if the regulatory network was built for
+for instance, if a regulatory network was built and is available for one genome, but you intend to use it for
+a related genome or a genome with different gene calls.  If a gene in the original regulatory network cannot be found in
+the translation mapping, then it is simply removed from the new regulatory network.  Thus, if you are only changing the names
+of some genes, you still must provide an entry in the input mapping for the genes you wish to keep.  If successful, this method
+returns the regulatory network ID of the newly created regulatory network.  This method also returns a status message indicating
+what happened or what went wrong.
+
+The mapping<string,string> new_features_names should be defined so that existing IDs are the key and the replacement IDs are the
+values stored.
 
 =back
 
@@ -1656,8 +1953,6 @@ the same namespace.
 a reference to a hash where the following keys are defined:
 TF has a value which is a feature_id
 target has a value which is a feature_id
-probabilityTTonGivenTFoff has a value which is a float
-probabilityTTonGivenTFon has a value which is a float
 
 </pre>
 
@@ -1668,8 +1963,6 @@ probabilityTTonGivenTFon has a value which is a float
 a reference to a hash where the following keys are defined:
 TF has a value which is a feature_id
 target has a value which is a feature_id
-probabilityTTonGivenTFoff has a value which is a float
-probabilityTTonGivenTFon has a value which is a float
 
 
 =end text

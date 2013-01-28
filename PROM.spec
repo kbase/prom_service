@@ -8,6 +8,10 @@ expression and regulatory data.  PROM provides the capability to simulate transc
 phenotypes.  PROM model constraint objects are created in a user's workspace, and can be operated on and
 used in conjunction with an FBA model with the KBase FBA Modeling Service.
 
+Note: for compatibility with the workspace service and legacy reasons, auth tokens are passed in as
+parameters rather than handled automatically by the auto-generated client/server infrastructure.  This
+will be fixed soon in one of the next builds.
+
 [1] Chandrasekarana S. and Price ND. Probabilistic integrative modeling of genome-scale metabolic and
 regulatory networks in Escherichia coli and Mycobacterium tuberculosis. PNAS (2010) 107:17845-50.
 
@@ -126,8 +130,6 @@ module PROM
     typedef structure {
         feature_id TF;
         feature_id target;
-        float probabilityTTonGivenTFoff;
-        float probabilityTTonGivenTFon;
     } regulatory_interaction;
     
     
@@ -228,6 +230,43 @@ module PROM
     
     
     /*
+    This method creates a new, empty, expression data collection in the specified workspace. If the method was successful,
+    the ID of the expression data set will be returned.  The method also returns a status message providing additional
+    details of the steps that occured or a message that indicates what failed.  If the method fails, no expression
+    data ID is returned.
+    */
+    funcdef create_expression_data_collection(workspace_name workspace_name, auth_token token) returns (status status, expression_data_collection_id expression_data_collection_id);
+    
+    
+    /*
+    This method provides a way to attach a set of boolean expression data to an expression data collection object created
+    in the current workspace.  Data collections can thus be composed of both CDS data and user data in this way.  The method
+    returns a status message providing additional details of the steps that occured or a message that indicates what failed.
+    If the method fails, then all updates to the expression_data_collection are not made, although some of the boolean gene
+    expression data may have been created in the workspace (see status message for IDs of the new expession data objects).
+    */
+    funcdef add_expression_data_to_collection(list<boolean_gene_expression_data> data, expression_data_collection_id expression_data_collecion_id, workspace_name workspace_name, auth_token token) returns (status status);
+    
+    
+    /*
+    Maps the expression data collection stored in a workspace in one genome namespace to an alternate genome namespace.  This is useful,
+    for instance, if expression data is available for one genome, but you intend to use it for a related genome or a genome with different
+    gene calls.  If a gene in the original expression data cannot be found in the translation mapping, then it is ignored and left as is
+    so that the number of features in the expression data set is not altered.  NOTE!: this is different from the default behavior of
+    change_regulatory_network_namespace, which will drop all genes that are not found in the mapping.  If successful, this method
+    returns the expression collection ID of the newly created expression data colleion.  This method also returns a status message indicating
+    what happened or what went wrong.
+    
+    The mapping<string,string> new_features_names should be defined so that existing IDs are the key and the replacement IDs are the
+    values stored.
+    */
+    funcdef change_expression_data_namespace(expression_data_collection_id expression_data_collection_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, expression_data_collection_id expression_data_collection_id);
+    
+    
+    
+    
+    
+    /*
     This method fetches a regulatory network from the regulation service that is associated with the given genome id.  If there
     are multiple regulome models available for the given genome, then the model with the most regulons is selected.  The method
     then constructs a regulatory network object in the specified workspace.  The method returns the ID of the regulatory network
@@ -242,7 +281,15 @@ module PROM
     
     /*
     Maps the regulatory network stored in a workspace in one genome namespace to an alternate genome namespace.  This is useful,
-    for instance, if the regulatory network was built for 
+    for instance, if a regulatory network was built and is available for one genome, but you intend to use it for
+    a related genome or a genome with different gene calls.  If a gene in the original regulatory network cannot be found in
+    the translation mapping, then it is simply removed from the new regulatory network.  Thus, if you are only changing the names
+    of some genes, you still must provide an entry in the input mapping for the genes you wish to keep.  If successful, this method
+    returns the regulatory network ID of the newly created regulatory network.  This method also returns a status message indicating
+    what happened or what went wrong.
+    
+    The mapping<string,string> new_features_names should be defined so that existing IDs are the key and the replacement IDs are the
+    values stored.    
     */
     funcdef change_regulatory_network_namespace(regulatory_network_id regulatory_network_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, regulatory_network_id new_regulatory_network_id);
     
@@ -280,12 +327,11 @@ module PROM
     funcdef create_prom_constraints(create_prom_constraints_parameters params) returns (status status);
     
     
+   
+    
     
     /* methods not yet implemented, and not essential for end-to-end testing, but on the docket */
-    /* funcdef create_expression_data_collection(workspace_name) returns (status, expression_data_collection_id); */
-    /* funcdef add_expression_data_to_collection(workspace_name, list<expression_data>); */
     /* funcdef merge_expression_data_collections(list <expression_data_collection_id> collections) returns (status,expression_data_collection_id); */
-    /* funcdef change_expression_data_namespace(expression_data_collection_id expression_data_collection_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, expression_data_collection_id expression_data_collection_id); */
     /* funcdef add_regulatory_network(workspace_name, regulatory_network); */
     
     
