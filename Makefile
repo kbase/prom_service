@@ -3,7 +3,7 @@ SERVICE = prom_service
 SERVICE_NAME = PROM
 SERVICE_PSGI_FILE = PROM.psgi
 #service port will need to change
-SERVICE_PORT = 7060
+SERVICE_PORT = 7069
 # more variables - need to remove redundancies
 SERV_SERVER_SPEC 	= PROM.spec
 SERV_SERVER_MODULE 	= prom_service

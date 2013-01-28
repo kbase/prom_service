@@ -22,4 +22,34 @@ Matt DeJongh (dejongh@hope.edu)
 DEPLOYMENT INSTRUCTIONS
 --------------------------
 
-Update the 'deploy.cfg' file
+Update the 'deploy.cfg' file with the endpoints of the services you wish to deploy
+against.  Currently they are configured to point to development servers.
+
+Deploy using the standard kbase deployment process after the dev_container is
+configured and other dependent modules are checked out (see DEPENDENCIES file),
+that is:
+
+cd /kb/dev_container/modules
+make
+make deploy
+cd /kb/deployment
+source user-env.sh
+cd /kb/deployment/services/prom_service
+./start_service
+
+
+TESTING INSTRUCTIONS
+-------------------------
+
+NOTE! tests of this service rely on deploying against compatible FBA modeling services,
+workspace services, regulation service and the CDS.  Testing of the methods requires
+retrievial of data from each of these services and interaction with each of these
+services.  Thus, tests of this module are necessarily integration tests!!!
+
+To test the deployment:
+
+cd /kb/dev_container/modules/prom_service
+make test
+
+
+

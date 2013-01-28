@@ -23,3 +23,6 @@ UPDATED FEATURES / MAJOR BUG FIXES:
 ANTICIPATED FUTURE DEVELOPMENTS:
 -Move expression data and regulation network manipulation methods out of this
 service and into the regulation service and future expression data service
+-Add methods to load user regulatory networks and gene expression data that
+is not available from the regulation service or the CDM.
+-Add method to change the namespace of features in an expression data collection.
