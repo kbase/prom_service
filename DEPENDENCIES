@@ -1,6 +1,8 @@
 typecomp
+auth
+idserver
 erdb_service
 regprecise
 workspace_service
-auth
 kb_model_seed
+KBaseFBAModeling
