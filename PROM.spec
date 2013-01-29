@@ -244,8 +244,12 @@ module PROM
     returns a status message providing additional details of the steps that occured or a message that indicates what failed.
     If the method fails, then all updates to the expression_data_collection are not made, although some of the boolean gene
     expression data may have been created in the workspace (see status message for IDs of the new expession data objects).
+    
+    Note: when defining expression data, the id field must be explicitly defined.  This will be the ID used to save the expression
+    data in the workspace.  If expression data with that ID already exists, this method will overwrite that data and you will
+    have to use the workspace service revert method to undo the change.
     */
-    funcdef add_expression_data_to_collection(list<boolean_gene_expression_data> data, expression_data_collection_id expression_data_collecion_id, workspace_name workspace_name, auth_token token) returns (status status);
+    funcdef add_expression_data_to_collection(list<boolean_gene_expression_data> expression_data, expression_data_collection_id expression_data_collecion_id, workspace_name workspace_name, auth_token token) returns (status status);
     
     
     /*
@@ -261,9 +265,6 @@ module PROM
     values stored.
     */
     funcdef change_expression_data_namespace(expression_data_collection_id expression_data_collection_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, expression_data_collection_id expression_data_collection_id);
-    
-    
-    
     
     
     /*
@@ -316,6 +317,7 @@ module PROM
         workspace_name workspace_name;
         auth_token token;
     } create_prom_constraints_parameters;
+    
     
     /*
     This method creates a set of Prom constraints for a given genome annotation based on a regulatory network

@@ -90,10 +90,10 @@ test-service:
 deploy: deploy-all
 	echo "OK... Done deploying $(SERVICE)."
 
-deploy-all: deploy-client deploy-service
+deploy-all: deploy-client deploy-scripts deploy-service deploy-docs
 	echo "OK... Done deploying ALL artifacts (includes clients, docs, scripts and service) of $(SERVICE)."
 
-deploy-client: deploy-docs deploy-scripts
+deploy-client: deploy-docs
 	mkdir -p $(TARGET)/lib/Bio/KBase/$(SERVICE_NAME)
 	mkdir -p $(TARGET)/lib/biokbase/$(SERVICE_NAME)
 	mkdir -p $(TARGET)/lib/javascript/$(SERVICE_NAME)
@@ -102,7 +102,7 @@ deploy-client: deploy-docs deploy-scripts
 	cp lib/javascript/$(SERVICE_NAME)/* $(TARGET)/lib/javascript/$(SERVICE_NAME)/.
 	echo "deployed clients of $(SERVICE)."
 
-deploy-scripts:
+deploy-scripts: deploy-docs
 	echo "scripts are not yet ready to be deployed."
 
 deploy-docs: build-docs
