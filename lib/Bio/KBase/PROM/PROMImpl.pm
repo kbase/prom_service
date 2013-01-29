@@ -40,6 +40,7 @@ created 11/27/2012 - msneddon
 use Bio::KBase::ERDB_Service::Client;
 use Bio::KBase::Regulation::Client;
 use Bio::KBase::workspaceService::Client;
+use Bio::KBase::IDServer::Client;
 use Bio::KBase::PROM::Util qw(computeInteractionProbabilities);
 #use ModelSEED::MS::PROMModel;
 
@@ -70,7 +71,7 @@ sub new
 	print "looking at config file: ".$e."\n";
 	print "service name: ".$service."\n";
 	$c->read($e);
-	my @params = qw(erdb regulation workspace); # scratch-space);
+	my @params = qw(erdb regulation workspace idserver); # scratch-space);
 	for my $p (@params)
 	{
 	    my $v = $c->param("$service.$p");
@@ -108,15 +109,14 @@ sub new
 	print STDERR "Workspace Service configuration not found\n";
     }
     
-    #scratch-space is no longer required because everything can be handled in memory or with workspace services
-    #if (defined $params{"scratch-space"}) {
-    #	my $scratch_space = $params{"scratch-space"};
-    #	$self->{'scratch_space'} = $scratch_space;
-    #	print STDERR "Scratch space for temporary files is set to : $scratch_space\n";
-    #}
-    #else {
-    #	print STDERR "Scratch space configuration not found\n";
-    #}
+    if (defined $params{"idserver"}) {
+	my $idserver_url = $params{"idserver"};
+	$self->{'idserver'} = Bio::KBase::IDServer::Client->new($idserver_url);
+	print STDERR "Connecting ID Server Service client to server : $idserver_url\n";
+    }
+    else {
+	print STDERR "ID Server Service configuration not found\n";
+    }
     
     $self->{'uuid_generator'} = new Data::UUID;
     
@@ -1219,17 +1219,15 @@ $params is a create_prom_constraints_parameters
 $status is a status
 create_prom_constraints_parameters is a reference to a hash where the following keys are defined:
 	new_prom_constraint_id has a value which is a prom_constraint_id
-	overwrite has a value which is a bool
 	e_id has a value which is an expression_data_collection_id
 	r_id has a value which is a regulatory_network_id
-	a_id has a value which is a genome_annotation_id
+	genome_object_id has a value which is a genome_object_id
 	workspace_name has a value which is a workspace_name
 	token has a value which is an auth_token
 prom_constraint_id is a string
-bool is an int
 expression_data_collection_id is a string
 regulatory_network_id is a string
-genome_annotation_id is a string
+genome_object_id is a string
 workspace_name is a string
 auth_token is a string
 status is a string
@@ -1244,17 +1242,15 @@ $params is a create_prom_constraints_parameters
 $status is a status
 create_prom_constraints_parameters is a reference to a hash where the following keys are defined:
 	new_prom_constraint_id has a value which is a prom_constraint_id
-	overwrite has a value which is a bool
 	e_id has a value which is an expression_data_collection_id
 	r_id has a value which is a regulatory_network_id
-	a_id has a value which is a genome_annotation_id
+	genome_object_id has a value which is a genome_object_id
 	workspace_name has a value which is a workspace_name
 	token has a value which is an auth_token
 prom_constraint_id is a string
-bool is an int
 expression_data_collection_id is a string
 regulatory_network_id is a string
-genome_annotation_id is a string
+genome_object_id is a string
 workspace_name is a string
 auth_token is a string
 status is a string
@@ -1847,7 +1843,7 @@ a string
 
 
 
-=head2 annotation_uuid
+=head2 genome_object_id
 
 =over 4
 
@@ -1855,38 +1851,7 @@ a string
 
 =item Description
 
-A workspace UUID for the annotation object in a user's workpace
-
-
-=item Definition
-
-=begin html
-
-<pre>
-a string
-</pre>
-
-=end html
-
-=begin text
-
-a string
-
-=end text
-
-=back
-
-
-
-=head2 genome_annotation_id
-
-=over 4
-
-
-
-=item Description
-
-A workspace ID for the annotation object in a user's workspace - is this different than the UUID??
+A workspace ID for a genome object in a user's workspace, used to link a PromConstraintsObject to a genome
 
 
 =item Definition
@@ -2328,7 +2293,7 @@ used to compute the interaction probabilities is provided for future reference.
 <pre>
 a reference to a hash where the following keys are defined:
 id has a value which is a prom_constraint_id
-annotation_uuid has a value which is an annotation_uuid
+genome_object_id has a value which is a genome_object_id
 transcriptionFactorMaps has a value which is a reference to a list where each element is a tfMap
 expression_data_collection_id has a value which is an expression_data_collection_id
 
@@ -2340,7 +2305,7 @@ expression_data_collection_id has a value which is an expression_data_collection
 
 a reference to a hash where the following keys are defined:
 id has a value which is a prom_constraint_id
-annotation_uuid has a value which is an annotation_uuid
+genome_object_id has a value which is a genome_object_id
 transcriptionFactorMaps has a value which is a reference to a list where each element is a tfMap
 expression_data_collection_id has a value which is an expression_data_collection_id
 
@@ -2359,17 +2324,17 @@ expression_data_collection_id has a value which is an expression_data_collection
 
 =item Description
 
-Named parameters for 'create_prom_constraints' method.
+Named parameters for 'create_prom_constraints' method.  Curr
 
     prom_constraint_id new_prom_constraint_id  - (required) ID of the new prom constraints object that will be created
-    bool overwrite                             - (optional) true to overwrite the prom model, false to exit on error if you
-                                                 are attempting to overwrite an existing model.  Default=false.
     expression_data_collection_id e_id         - (required) the workspace ID of the expression data collection needed to
                                                  build the PROM constraints.
     regulatory_network_id r_id                 - the workspace ID of the regulatory network data to use
     genome_annotation_id a_id                  - the workspace ID of the genome annotation to use
     workspace_name workspace_name              - the name of the workspace to use
     auth_token token                           - the auth token that has permission to write in the specified workspace
+    bool overwrite                             - (optional) true to overwrite the prom model, false to exit on error if you
+                                                 are attempting to overwrite an existing model.  Default=false.
 
 
 =item Definition
@@ -2379,10 +2344,9 @@ Named parameters for 'create_prom_constraints' method.
 <pre>
 a reference to a hash where the following keys are defined:
 new_prom_constraint_id has a value which is a prom_constraint_id
-overwrite has a value which is a bool
 e_id has a value which is an expression_data_collection_id
 r_id has a value which is a regulatory_network_id
-a_id has a value which is a genome_annotation_id
+genome_object_id has a value which is a genome_object_id
 workspace_name has a value which is a workspace_name
 token has a value which is an auth_token
 
@@ -2394,10 +2358,9 @@ token has a value which is an auth_token
 
 a reference to a hash where the following keys are defined:
 new_prom_constraint_id has a value which is a prom_constraint_id
-overwrite has a value which is a bool
 e_id has a value which is an expression_data_collection_id
 r_id has a value which is a regulatory_network_id
-a_id has a value which is a genome_annotation_id
+genome_object_id has a value which is a genome_object_id
 workspace_name has a value which is a workspace_name
 token has a value which is an auth_token
 
