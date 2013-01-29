@@ -70,7 +70,7 @@ sub new
 	print "looking at config file: ".$e."\n";
 	print "service name: ".$service."\n";
 	$c->read($e);
-	my @params = qw(erdb regulation workspace scratch-space);
+	my @params = qw(erdb regulation workspace); # scratch-space);
 	for my $p (@params)
 	{
 	    my $v = $c->param("$service.$p");
@@ -108,14 +108,15 @@ sub new
 	print STDERR "Workspace Service configuration not found\n";
     }
     
-    if (defined $params{"scratch-space"}) {
-	my $scratch_space = $params{"scratch-space"};
-	$self->{'scratch_space'} = $scratch_space;
-	print STDERR "Scratch space for temporary files is set to : $scratch_space\n";
-    }
-    else {
-	print STDERR "Scratch space configuration not found\n";
-    }
+    #scratch-space is no longer required because everything can be handled in memory or with workspace services
+    #if (defined $params{"scratch-space"}) {
+    #	my $scratch_space = $params{"scratch-space"};
+    #	$self->{'scratch_space'} = $scratch_space;
+    #	print STDERR "Scratch space for temporary files is set to : $scratch_space\n";
+    #}
+    #else {
+    #	print STDERR "Scratch space configuration not found\n";
+    #}
     
     $self->{'uuid_generator'} = new Data::UUID;
     
