@@ -425,6 +425,37 @@ sub create_expression_data_collection
     my $ctx = $Bio::KBase::PROM::Service::CallContext;
     my($status, $expression_data_collection_id);
     #BEGIN create_expression_data_collection
+	$status = ''; $expression_data_collection_id = '';
+	my $ws = $self->{'workspace'};
+	
+	# generate a new collection id
+	$expression_data_collection_id = $self->{'uuid_generator'}->create_str();
+		
+	# create the collection and encode it as JSON
+	my $exp_data_collection = {
+	    id => $expression_data_collection_id,
+	    expression_data => [],
+	};
+	my $encoded_json_data_collection = encode_json $exp_data_collection;
+		
+	# save the collection to the workspace
+	my $workspace_save_obj_params = {
+	    id => $expression_data_collection_id,
+	    type => "Unspecified",
+	    data => $encoded_json_data_collection,
+	    workspace => $workspace_name,
+	    command => "Bio::KBase::PROM::create_expression_data_collection",
+	    auth => $token,
+	    json => 1,
+	    compressed => 0,
+	    retrieveFromURL => 0,
+	};
+	my $object_metadata = $ws->save_object($workspace_save_obj_params);
+	print "---Expression Data Collection:\n".Dumper($object_metadata)."\n";
+	    
+	$status = $status."  -> created empty expression experiment collection with ID:$expression_data_collection_id\n";
+	$status = "SUCCESS.\n".$status;
+	    
     #END create_expression_data_collection
     my @_bad_returns;
     (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
@@ -442,7 +473,7 @@ sub create_expression_data_collection
 
 =head2 add_expression_data_to_collection
 
-  $status = $obj->add_expression_data_to_collection($data, $expression_data_collecion_id, $workspace_name, $token)
+  $status = $obj->add_expression_data_to_collection($expression_data, $expression_data_collecion_id, $workspace_name, $token)
 
 =over 4
 
@@ -451,7 +482,7 @@ sub create_expression_data_collection
 =begin html
 
 <pre>
-$data is a reference to a list where each element is a boolean_gene_expression_data
+$expression_data is a reference to a list where each element is a boolean_gene_expression_data
 $expression_data_collecion_id is an expression_data_collection_id
 $workspace_name is a workspace_name
 $token is an auth_token
@@ -477,7 +508,7 @@ status is a string
 
 =begin text
 
-$data is a reference to a list where each element is a boolean_gene_expression_data
+$expression_data is a reference to a list where each element is a boolean_gene_expression_data
 $expression_data_collecion_id is an expression_data_collection_id
 $workspace_name is a workspace_name
 $token is an auth_token
@@ -510,6 +541,10 @@ returns a status message providing additional details of the steps that occured 
 If the method fails, then all updates to the expression_data_collection are not made, although some of the boolean gene
 expression data may have been created in the workspace (see status message for IDs of the new expession data objects).
 
+Note: when defining expression data, the id field must be explicitly defined.  This will be the ID used to save the expression
+data in the workspace.  If expression data with that ID already exists, this method will overwrite that data and you will
+have to use the workspace service revert method to undo the change.
+
 =back
 
 =cut
@@ -517,10 +552,10 @@ expression data may have been created in the workspace (see status message for I
 sub add_expression_data_to_collection
 {
     my $self = shift;
-    my($data, $expression_data_collecion_id, $workspace_name, $token) = @_;
+    my($expression_data, $expression_data_collecion_id, $workspace_name, $token) = @_;
 
     my @_bad_arguments;
-    (ref($data) eq 'ARRAY') or push(@_bad_arguments, "Invalid type for argument \"data\" (value was \"$data\")");
+    (ref($expression_data) eq 'ARRAY') or push(@_bad_arguments, "Invalid type for argument \"expression_data\" (value was \"$expression_data\")");
     (!ref($expression_data_collecion_id)) or push(@_bad_arguments, "Invalid type for argument \"expression_data_collecion_id\" (value was \"$expression_data_collecion_id\")");
     (!ref($workspace_name)) or push(@_bad_arguments, "Invalid type for argument \"workspace_name\" (value was \"$workspace_name\")");
     (!ref($token)) or push(@_bad_arguments, "Invalid type for argument \"token\" (value was \"$token\")");
@@ -533,6 +568,99 @@ sub add_expression_data_to_collection
     my $ctx = $Bio::KBase::PROM::Service::CallContext;
     my($status);
     #BEGIN add_expression_data_to_collection
+	$status = "";
+	my $ws = $self->{'workspace'};
+	my $fail = 0; #flag to indicate if we failed or not
+	
+	# first check if the expression data collection exists, and if so, fetch it.
+	my $get_object_params = {
+	    id=>$expression_data_collecion_id,type => "Unspecified",
+	    workspace => $workspace_name, auth => $token
+	};
+	if($ws->has_object($get_object_params)) {
+	    
+	    my $collection = $ws->get_object($get_object_params);
+	    $status.=" -> fetched expression data collection.\n";
+	    
+	    # now process and save all of the expression data sets, keeping track of all the IDs that we found
+	    my $experiment_ids = [];
+	    foreach my $exp(@$expression_data) {
+		if(exists($exp->{id})) {
+		    my $exp_id = $exp->{id};
+		    if(exists($exp->{on_off_call})) {
+			my $data_src = "loaded_from_outside_kbase"; my $data_src_id = "";
+			if(exists($exp->{data_source})) { $data_src = $exp->{data_source}; }
+			else { $status.=" -> warning: no data_source provided for experiment with id $exp_id";}
+			if(exists($exp->{data_source_id})) { $data_src_id = $exp->{data_source_id}; }
+			else { $status.=" -> warning: no data_source_id provided for experiment with id $exp_id";}
+			$status.=" -> processing '$exp_id' (src:'$data_src',src_id:'$data_src_id')\n";
+		    
+			# save this expression data to the workspace
+			my $encoded_json_data_collection = encode_json($exp);
+			my $workspace_save_obj_params = {
+			    id => $exp_id,
+			    type => "Unspecified",
+			    data => $encoded_json_data_collection,
+			    workspace => $workspace_name,
+			    command => "Bio::KBase::PROM::add_expression_data_to_collection",
+			    auth => $token,
+			    json => 1,
+			    compressed => 0,
+			    retrieveFromURL => 0,
+			};
+			my $object_metadata = $ws->save_object($workspace_save_obj_params);
+			$status.=" -> saved '$exp_id' to workspace.\n";
+			push @$experiment_ids,$exp_id;
+		    
+		    } else {
+			$status.=" -> no data (on_off_call) provided for experimental data set with id $exp_id";
+			$fail=1; last;
+		    }
+		} else {
+		    $status.=' -> no ID provided for one of the experimental data sets.';
+		    $fail=1; last;
+		}
+	    }
+	    # make sure to save the original expression data sets
+	    foreach my $original_member (@{$collection->{data}->{expression_data}}) {
+		push @$experiment_ids, $original_member;
+	    }
+	    
+	    #finally, we can add each of these data sets to the collection object and resave the collection
+	    my $new_collection = {
+		id=>$collection->{data}->{id},
+		expression_data=>$experiment_ids
+	    };
+	    my $encoded_json_data_collection = encode_json($new_collection);
+	    my $workspace_save_obj_params = {
+		id => $collection->{data}->{id},
+		type => "Unspecified",
+		data => $encoded_json_data_collection,
+		workspace => $workspace_name,
+		command => "Bio::KBase::PROM::add_expression_data_to_collection",
+		auth => $token,
+		json => 1,
+		compressed => 0,
+		retrieveFromURL => 0,
+		metadata=>$collection->{metadata}->[10],
+	    };
+	    my $collection_object_metadata = $ws->save_object($workspace_save_obj_params);
+	    print "updated expression data collection:\n".Dumper($collection_object_metadata)."\n";
+	    $status.=" -> updated the expression data collection to include the new data.\n";
+	    
+	    # for debugging to check if the object was created properly
+	    #my $fresh_collection = $ws->get_object($get_object_params);
+	    #print Dumper($fresh_collection)."\n";
+	
+	} else {
+	    $status .= " -> no expression data collection with ID $expression_data_collecion_id found!\n";
+	    $status .= "    Did you remember to create one with the function 'create_expression_data_collection' yet?\n";
+	    $fail=1;
+	}
+	
+	if($fail) { $status = "FAILURE.\n".$status;
+	} else { $status = "SUCCESS.\n".$status; }
+	
     #END add_expression_data_to_collection
     my @_bad_returns;
     (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
@@ -549,7 +677,7 @@ sub add_expression_data_to_collection
 
 =head2 change_expression_data_namespace
 
-  $status, $expression_data_collection_id = $obj->change_expression_data_namespace($expression_data_collection_id, $new_feature_names, $workspace_name, $token)
+  $status = $obj->change_expression_data_namespace($expression_data_collection_id, $new_feature_names, $workspace_name, $token)
 
 =over 4
 
@@ -563,7 +691,6 @@ $new_feature_names is a reference to a hash where the key is a string and the va
 $workspace_name is a workspace_name
 $token is an auth_token
 $status is a status
-$expression_data_collection_id is an expression_data_collection_id
 expression_data_collection_id is a string
 workspace_name is a string
 auth_token is a string
@@ -580,7 +707,6 @@ $new_feature_names is a reference to a hash where the key is a string and the va
 $workspace_name is a workspace_name
 $token is an auth_token
 $status is a status
-$expression_data_collection_id is an expression_data_collection_id
 expression_data_collection_id is a string
 workspace_name is a string
 auth_token is a string
@@ -625,18 +751,87 @@ sub change_expression_data_namespace
     }
 
     my $ctx = $Bio::KBase::PROM::Service::CallContext;
-    my($status, $expression_data_collection_id);
+    my($status);
     #BEGIN change_expression_data_namespace
+	
+	$status="";
+    
+	my $ws = $self->{'workspace'};
+	my $fail = 0; #flag to indicate if we failed or not
+	
+	# first check if the expression data collection exists, and if so, fetch it.
+	my $get_object_params = {
+	    id=>$expression_data_collection_id, type => "Unspecified",
+	    workspace => $workspace_name, auth => $token
+	};
+	if($ws->has_object($get_object_params)) {
+	    my $collection = $ws->get_object($get_object_params);
+	    $status.=" -> fetched expression data collection.\n";
+	    
+	    #loop over each expression data set and update it.
+	    my $experiment_ids = $collection->{data}->{expression_data};
+	    foreach my $exp (@$experiment_ids) {
+		$get_object_params->{id} = $exp;
+		my $exp_obj = $ws->get_object($get_object_params);
+		my $data_to_update = $exp_obj->{data}->{on_off_call};
+		my $new_exp_data = {};
+		
+		#make the swap
+		my $replacement_count= 0; my $total_count=0;
+		foreach my $gene (keys %$data_to_update) {
+		    $total_count++;
+		    if(exists($new_feature_names->{$gene})) {
+			$replacement_count++;
+			$new_exp_data->{$new_feature_names->{$gene}} = $data_to_update->{$gene};
+		    } else {
+			$new_exp_data->{$gene} = $data_to_update->{$gene};
+		    }
+		}
+		
+		#push back the new object
+		my $new_exp_object = {
+		    id=>$exp_obj->{data}->{id},
+		    on_off_call=>$new_exp_data,
+		    expression_data_source => $exp_obj->{data}->{expression_data_source},
+		    expression_data_source_id => $exp_obj->{data}->{expression_data_source_id}
+		};
+		my $encoded_json_data_exp = encode_json($new_exp_object);
+		my $workspace_save_obj_params = {
+		    id => $exp_obj->{data}->{id},
+		    type => "Unspecified",
+		     data => $encoded_json_data_exp,
+		    workspace => $workspace_name,
+		    command => "Bio::KBase::PROM::add_expression_data_to_collection",
+		    auth => $token,
+		    json => 1,
+		    compressed => 0,
+		    retrieveFromURL => 0,
+		    metadata=>$exp_obj->{metadata}->[10],
+		};
+		my $object_metadata = $ws->save_object($workspace_save_obj_params);
+		$status.=" -> updated '$exp_obj->{data}->{id}' in workspace (modified $replacement_count of $total_count gene names).\n";
+		
+	    }
+	    
+	} else {
+	    $status .= " -> no expression data collection with ID $expression_data_collection_id found!\n";
+	    $status .= "    Did you remember to create one with the function 'create_expression_data_collection' yet?\n";
+	    $fail=1;
+	}
+	
+	if($fail) { $status = "FAILURE.\n".$status;
+	} else { $status = "SUCCESS.\n".$status; }
+    
+    
     #END change_expression_data_namespace
     my @_bad_returns;
     (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
-    (!ref($expression_data_collection_id)) or push(@_bad_returns, "Invalid type for return variable \"expression_data_collection_id\" (value was \"$expression_data_collection_id\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to change_expression_data_namespace:\n" . join("", map { "\t$_\n" } @_bad_returns);
 	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
 							       method_name => 'change_expression_data_namespace');
     }
-    return($status, $expression_data_collection_id);
+    return($status);
 }
 
 

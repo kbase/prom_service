@@ -264,7 +264,7 @@ module PROM
     The mapping<string,string> new_features_names should be defined so that existing IDs are the key and the replacement IDs are the
     values stored.
     */
-    funcdef change_expression_data_namespace(expression_data_collection_id expression_data_collection_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status, expression_data_collection_id expression_data_collection_id);
+    funcdef change_expression_data_namespace(expression_data_collection_id expression_data_collection_id, mapping<string,string> new_feature_names, workspace_name workspace_name, auth_token token) returns (status status);
     
     
     /*

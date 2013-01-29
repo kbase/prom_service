@@ -33,16 +33,19 @@ my $workspace_url =$c->param("prom_service.workspace");
 ok(defined $c->param("prom_service.fba"), "FBA url found");
 my $fba_url =$c->param("prom_service.fba");
 my $test_expression_data = 't/client-tests/sample_boolean_expression_data.txt';
+my $test_mapping_file = 't/client-tests/sample_id_mapping.txt';
+
 
 # 0) BOOTUP THE PROM CLIENT (HOW ELSE CAN I INJECT THE CONFIG LOCATION IN A TEST SCRIPT ?!?!?!?)
 use Server;
 $ENV{PROM_DEPLOYMENT_CONFIG}='deploy.cfg';
 $ENV{PROM_DEPLOYMENT_SERVICE_NAME}='prom_service';
-#my ($pid, $url) = Server::start('PROM');
-my $url = "http://localhost:7069"; my $pid = '??';
+my ($pid, $url) = Server::start('PROM');
+#my $url = "http://localhost:7069"; my $pid = '??';
 print "-> attempting to connect to:'".$url."' with PID=$pid\n";
 my $prom = Bio::KBase::PROM::Client->new($url, user_id=>$user_id, password=>$password);
 ok(defined($prom),"instantiating PROM client");
+
 
 ## 1) CREATE A WORKSPACE IF IT DOES NOT EXIST
 my $ws = Bio::KBase::workspaceService::Client->new($workspace_url);
@@ -64,7 +67,8 @@ if( $found != 1 ) {
     ok(1, "workspace already exists");
 }
 
-# 2) CREATE A NEW EXPRESSION DATA COLLECTION
+#
+## 2) CREATE A NEW EXPRESSION DATA COLLECTION
 my $expression_data_collection_id; my $status;
 ($status, $expression_data_collection_id) = $prom->create_expression_data_collection($workspace_name, $token->token());
 ok($expression_data_collection_id,"expression collection id defined");
@@ -73,12 +77,12 @@ print "STATUS: \n$status\n";
 print "RETURNED ID: $expression_data_collection_id\n";
 
 
-# 3) READ DATA FILE AND ATTACH THE DATA TO THE EXPRESSION DATA COLLECTION
+## 3) READ DATA FILE AND ATTACH THE DATA TO THE EXPRESSION DATA COLLECTION
 open(my $IN, $test_expression_data);
 ok($IN,"opening test expression data");
 my $UUID=new Data::UUID;
 my $expression_data=[]; my @expression_ws_ids; my @features; 
-my $line_number=0; my $step_size=500; my $line='';
+my $line_number=0; my $line='';
 while (<$IN>) {
         $line_number++;
 	$line = $_; chomp($line);
@@ -102,7 +106,6 @@ while (<$IN>) {
                     data_source_id=>$row_header
                 };
                 push @$expression_data, $data;
-                #print $data->{id}."\n";
             }
         }
 }
@@ -113,11 +116,30 @@ ok($status,"add_expression_data_to_collection returned a status message");
 ok($status ne "","that status message was not empty");
 print "STATUS: \n$status\n";
 
+
 # 4) CONVERT THE NAMESPACE OF THE EXPRESSION DATA SET
-# not yet functional or necessary for now....
+open($IN, $test_mapping_file);
+ok($IN,"opening sample feature mapping data");
+my $new_feature_names = {};
+while (<$IN>) {
+	$line = $_; chomp($line);
+        if($line ne '') {
+            my @tokens = split("\t",$line);
+            $new_feature_names->{$tokens[0]} = $tokens[1];
+        }
+}
+close $IN;
 
 
-# 5) DELETE THE WORKSPACE
+#my $expression_data_collection_id = '0179188A-69B3-11E2-ACFF-64D2B2C0258E';
+$status=$prom->change_expression_data_namespace($expression_data_collection_id, $new_feature_names, $workspace_name, $token->token());
+ok($status,"change_expression_data_namespace returned a status message");
+ok($status ne "","that status message was not empty");
+print "STATUS: \n$status\n";
+
+
+
+## 5) DELETE THE WORKSPACE
 my $delete_workspace_params = {
     workspace => $workspace_name,
     auth => $token->token()
