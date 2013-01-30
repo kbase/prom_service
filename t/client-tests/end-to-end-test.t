@@ -156,12 +156,12 @@ ok($prom_id ne "","prom ID not empty, which means it was probably created succes
 
 
 # 9) DELETE THE WORKSPACE
-#my $delete_workspace_params = {
-#    workspace => $workspace_name,
-#    auth => $token->token()
-#};
-#my $workspace_meta=$ws->delete_workspace($delete_workspace_params);
-#ok(defined $workspace_meta, "workspace deletion");
-#print "Deleted workspace: \n".Dumper($workspace_meta)."\n";
+my $delete_workspace_params = {
+    workspace => $workspace_name,
+    auth => $token->token()
+};
+my $workspace_meta=$ws->delete_workspace($delete_workspace_params);
+ok(defined $workspace_meta, "workspace deletion");
+print "Deleted workspace: \n".Dumper($workspace_meta)."\n";
 
 done_testing();

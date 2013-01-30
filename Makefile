@@ -103,7 +103,16 @@ deploy-client: deploy-docs
 	echo "deployed clients of $(SERVICE)."
 
 deploy-scripts: deploy-docs
-	echo "scripts are not yet ready to be deployed."
+	export KB_TOP=$(TARGET); \
+	export KB_RUNTIME=$(DEPLOY_RUNTIME); \
+	export KB_PERL_PATH=$(TARGET)/lib bash ; \
+	for src in $(SRC_PERL) ; do \
+		basefile=`basename $$src`; \
+		base=`basename $$src .pl`; \
+		echo install $$src $$base ; \
+		cp $$src $(TARGET)/plbin ; \
+		$(WRAP_PERL_SCRIPT) "$(TARGET)/plbin/$$basefile" $(TARGET)/bin/$$base ; \
+	done
 
 deploy-docs: build-docs
 	mkdir -p $(SERVICE_DIR)/webroot
@@ -164,6 +173,7 @@ deploy-service-start_scripts:
 	cp reboot_service $(SERVICE_DIR)/
 
 
+#NOTE: does not yet undeploy scripts!!  how shall we remove scripts unless we build an index of script names?
 undeploy:
 	rm -rfv $(SERVICE_DIR)
 	rm -rfv $(TARGET)/lib/Bio/KBase/$(SERVICE_NAME)
