@@ -45,8 +45,8 @@ my $status = '';
 use Server;
 $ENV{PROM_DEPLOYMENT_CONFIG}='deploy.cfg';
 $ENV{PROM_DEPLOYMENT_SERVICE_NAME}='prom_service';
-#my ($pid, $url) = Server::start('PROM');
-my $url = "http://localhost:7069"; my $pid = '??';
+my ($pid, $url) = Server::start('PROM');
+#my $url = "http://localhost:7069"; my $pid = '??';
 print "-> attempting to connect to:'".$url."' with PID=$pid\n";
 
 my $prom = Bio::KBase::PROM::Client->new($url, user_id=>$user_id, password=>$password);
