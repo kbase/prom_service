@@ -76,7 +76,14 @@ my $n_args = $#ARGV+1;
 if($n_args==0) {
     if($genomeId) {
         #create client
-        my $prom = get_prom_client();
+        my $prom;
+        eval{
+            $prom = get_prom_client();
+        }
+        if(!$prom) {
+            print "FAILURE - unable to create prom service client.  Is you PROM URL correct? see prom-url.\n";
+            exit 1;
+        }
         #grab auth info
         my $token = get_auth_token();
         #make the call
@@ -92,7 +99,7 @@ if($n_args==0) {
         }
         if($verbose) { print $status."\n"; }
         if($expression_collection_id ne '') {
-            print $expression_collection_id;
+            print $expression_collection_id."\n";
             exit 0;
         } else {
             print $status."\n";
