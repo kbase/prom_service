@@ -60,11 +60,8 @@ module PROM
     /* A workspace ID for the prom constraint object in a user's workpace */
     typedef string prom_constraint_id;
     
-    /* A workspace UUID for the annotation object in a user's workpace */
-    typedef string annotation_uuid;
-    
-    /* A workspace ID for the annotation object in a user's workspace - is this different than the UUID?? */
-    typedef string genome_annotation_id;
+    /* A workspace ID for a genome object in a user's workspace, used to link a PromConstraintsObject to a genome */
+    typedef string genome_object_id;
     
     /* Specifies the source of a data object, e.g. KBase or MicrobesOnline */
     typedef string source;
@@ -183,6 +180,10 @@ module PROM
         list <regulatory_target> transcriptionFactorMapTarget;
     } tfMap;
     
+    
+    /* the ID of the genome annotation object kept for reference in the prom_constraint object */
+    typedef string annotation_uuid;
+    
     /*
     An object that encapsulates the information necessary to apply PROM-based constraints to an FBA model. This
     includes a regulatory network consisting of a set of regulatory interactions (implied by the set of tfMap
@@ -296,24 +297,20 @@ module PROM
     
     
     /*
-    Named parameters for 'create_prom_constraints' method.
+    Named parameters for 'create_prom_constraints' method.  Currently all options are required.
     
-        prom_constraint_id new_prom_constraint_id  - (required) ID of the new prom constraints object that will be created
-        bool overwrite                             - (optional) true to overwrite the prom model, false to exit on error if you
-                                                     are attempting to overwrite an existing model.  Default=false.
-        expression_data_collection_id e_id         - (required) the workspace ID of the expression data collection needed to
-                                                     build the PROM constraints.
-        regulatory_network_id r_id                 - the workspace ID of the regulatory network data to use
-        genome_annotation_id a_id                  - the workspace ID of the genome annotation to use
-        workspace_name workspace_name              - the name of the workspace to use
-        auth_token token                           - the auth token that has permission to write in the specified workspace
+        genome_object_id genome_object_id            - the workspace ID of the genome to link to the prom object
+        expression_data_collection_id
+                   expression_data_collection_id     - the workspace ID of the expression data collection needed to
+                                                       build the PROM constraints.
+        regulatory_network_id regulatory_network_id  - the workspace ID of the regulatory network data to use
+        workspace_name workspace_name                - the name of the workspace to use
+        auth_token token                             - the auth token that has permission to write in the specified workspace
     */
     typedef structure {
-        prom_constraint_id new_prom_constraint_id;
-        bool overwrite;
-        expression_data_collection_id e_id;
-        regulatory_network_id r_id;
-        genome_annotation_id a_id;
+        genome_object_id genome_object_id;
+        expression_data_collection_id expression_data_collection_id;
+        regulatory_network_id regulatory_network_id;
         workspace_name workspace_name;
         auth_token token;
     } create_prom_constraints_parameters;
@@ -323,10 +320,11 @@ module PROM
     This method creates a set of Prom constraints for a given genome annotation based on a regulatory network
     and a collection of gene expression data stored on a workspace.  Parameters are specified in the
     create_prom_constraints_parameters object.  A status object is returned indicating success or failure along
-    with a message on what went wrong or statistics on the retrieved objects.  The Prom constraints can then
-    be used in conjunction with an FBA model using FBA Model Services.
+    with a message on what went wrong or statistics on the retrieved objects.  If the method was successful, the
+    ID of the new Prom constraints object is also returned. The Prom constraints can then be used in conjunction
+    with an FBA model using FBA Model Services.
     */
-    funcdef create_prom_constraints(create_prom_constraints_parameters params) returns (status status);
+    funcdef create_prom_constraints(create_prom_constraints_parameters params) returns (status status, prom_constraint_id prom_constraint_id);
     
     
    

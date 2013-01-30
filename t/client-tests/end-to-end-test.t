@@ -7,6 +7,10 @@
 # this test also serves as a good example for getting started with using the PROM service in perl.
 #
 
+#exit; # how else can I control what tests to run from the 'make test' target ?!?!?!?
+print "-----------------------------------------------------\n";
+print "running tests in end-to-end-test.t\n";
+
 use strict;
 use warnings;
 
@@ -33,15 +37,21 @@ ok(defined $c->param("prom_service.workspace"), "workspace url found");
 my $workspace_url =$c->param("prom_service.workspace");
 ok(defined $c->param("prom_service.fba"), "FBA url found");
 my $fba_url =$c->param("prom_service.fba");
+my $map20848_372 = "t/client-tests/map20848_372.txt";
+my $status = '';
+
 
 # 0) BOOTUP THE PROM CLIENT (HOW ELSE CAN I INJECT THE CONFIG LOCATION IN A TEST SCRIPT ?!?!?!?)
 use Server;
 $ENV{PROM_DEPLOYMENT_CONFIG}='deploy.cfg';
 $ENV{PROM_DEPLOYMENT_SERVICE_NAME}='prom_service';
-my ($pid, $url) = Server::start('PROM');
+#my ($pid, $url) = Server::start('PROM');
+my $url = "http://localhost:7069"; my $pid = '??';
 print "-> attempting to connect to:'".$url."' with PID=$pid\n";
+
 my $prom = Bio::KBase::PROM::Client->new($url, user_id=>$user_id, password=>$password);
 ok(defined($prom),"instantiating PROM client");
+
 
 # 1) CREATE A WORKSPACE IF IT DOES NOT EXIST
 my $ws = Bio::KBase::workspaceService::Client->new($workspace_url);
@@ -63,6 +73,7 @@ if( $found != 1 ) {
     ok(1, "workspace already exists");
 }
 
+
 # 2) LOAD A GENOME AND CREATE AN FBAMODEL
 my $fba = Bio::KBase::fbaModelServices::Client->new($fba_url);
 my $genome_to_workspace_params = {
@@ -74,32 +85,38 @@ my $genome_meta = $fba->genome_to_workspace($genome_to_workspace_params);
 ok(defined $genome_meta, "genome import seemed to work");
 print "Imported genome to workspace: \n".Dumper($genome_meta)."\n";
 
-my $get_object_params = {
-    id => "kb|g.372",
-    type => "Genome",
-    workspace => $workspace_name,
-    auth => $token->token()
-};
-my $obj_returned = $ws->get_object($get_object_params);
-my $annotation_uuid = $obj_returned->{data}->{annotation_uuid};
-ok(defined $annotation_uuid, "yes, genome successfully imported because i have an annotation object");
-
-# could create an fba model to get the genome annotation object here too!
-
-
 
 # 3) USE THE PROM SERVICE TO LOAD SOME REGULATORY NETWORK DATA
 # note that for now we only have a model for kb|g.20848, not kb|g.372!!!
-my $regulatory_network_id; my $status;
+my $regulatory_network_id;
 ($status, $regulatory_network_id) = $prom->get_regulatory_network_by_genome("kb|g.20848",$workspace_name, $token->token());
 ok($status,"creating the regulatory network returned some status flag");
 ok($regulatory_network_id,"regulatory network  defined");
-ok($regulatory_network_id ne "","regulatory network id not empty");
+ok($regulatory_network_id ne "","regulatory network id not empty, so method created the object");
 print "STATUS: \n$status\n";
 print "RETURNED ID: $regulatory_network_id\n";
 
 # 4) USE THE PROM SERVICE TO CONVERT THE NAMESPACE OF THE REGULTORY NETWORK
-# first get the mappings from a file.
+open(my $IN, $map20848_372);
+ok($IN,"opening sample feature mapping data");
+my $feature_map = {};
+while (<$IN>) {
+    my $line = $_; chomp($line);
+    if($line ne '') {
+        my @tokens = split("\t",$line);
+        $feature_map->{$tokens[0]} = $tokens[1];
+    }
+}
+close $IN;
+my $new_reg_network_name;
+($status, $new_reg_network_name) = $prom->change_regulatory_network_namespace($regulatory_network_id,$feature_map,$workspace_name,$token->token());
+ok($new_reg_network_name,"renamed regulatory network id defined");
+ok($new_reg_network_name ne "","renamed regulatory network not empty, so method created the object");
+print "STATUS: \n$status\n";
+print "RETURNED ID: $new_reg_network_name\n";
+
+
+
 
 # 5) CREATE AN EXPRESSION DATA SET
 my $expression_data_collection_id;
@@ -109,23 +126,29 @@ ok($expression_data_collection_id ne "","expression collection id not empty");
 print "STATUS: \n$status\n";
 print "RETURNED ID: $expression_data_collection_id\n";
 
+
 # 6) CONVERT THE NAMESPACE OF THE EXPRESSION DATA SET
-# not yet functional or necessary for now....
+# not tested here, see expression-data-load.t test
+
 
 # 7) CREATE THE PROM CONSTRAINTS
+#my $new_reg_network_name = 'B25C0052-6A64-11E2-A3E6-CF7A373EBAF0';
+#my $expression_data_collection_id = '13E085A4-6A66-11E2-A3E6-CF7A373EBAF0';
 my $create_prom_constraints_parameters = {
-    new_prom_constraint_id => "myFirstProm",
-    overwrite => 1,
-    e_id => $expression_data_collection_id,
-    r_id => $regulatory_network_id,
-    a_id => $annotation_uuid,
+    genome_object_id => "kb|g.372",
+    expression_data_collection_id => $expression_data_collection_id,
+    regulatory_network_id => $new_reg_network_name,
     workspace_name => $workspace_name,
     token =>  $token->token()
 };
-$status = $prom->create_prom_constraints($create_prom_constraints_parameters);
+my $prom_id;
+($status, $prom_id) = $prom->create_prom_constraints($create_prom_constraints_parameters);
 ok($status,"prom creation status defined");
 ok($status ne "","prom creation status not empty");
 print "STATUS: \n$status\n";
+print "PROM_ID: \n$prom_id\n";
+ok($prom_id,"prom ID was defined");
+ok($prom_id ne "","prom ID not empty, which means it was probably created successfully");
 
 
 # 8) RUN AN FBA MODEL WITH THE PROM CONSTRAINTS
@@ -133,12 +156,12 @@ print "STATUS: \n$status\n";
 
 
 # 9) DELETE THE WORKSPACE
-my $delete_workspace_params = {
-    workspace => $workspace_name,
-    auth => $token->token()
-};
-my $workspace_meta=$ws->delete_workspace($delete_workspace_params);
-ok(defined $workspace_meta, "workspace deletion");
-print "Deleted workspace: \n".Dumper($workspace_meta)."\n";
+#my $delete_workspace_params = {
+#    workspace => $workspace_name,
+#    auth => $token->token()
+#};
+#my $workspace_meta=$ws->delete_workspace($delete_workspace_params);
+#ok(defined $workspace_meta, "workspace deletion");
+#print "Deleted workspace: \n".Dumper($workspace_meta)."\n";
 
 done_testing();

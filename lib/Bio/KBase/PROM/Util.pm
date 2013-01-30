@@ -160,4 +160,34 @@ sub computeInteractionProbabilities {
 };
 
 
+# auth method used by scripts, copied from workspace services Helper.pm
+#sub auth {
+#    my $token = shift;
+#    if ( defined $token ) {
+#        if (defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
+#                $ENV{KB_AUTH_TOKEN} = $token;
+#        } else {
+#                my $filename = "$ENV{HOME}/.kbase_auth";
+#                open(my $fh, ">", $filename) || return;
+#                print $fh $token;
+#                close($fh);
+#        }
+#    } else {
+#        my $filename = "$ENV{HOME}/.kbase_auth";
+#        if (defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
+#                $token = $ENV{KB_AUTH_TOKEN};
+#        } elsif ( -e $filename ) {
+#                open(my $fh, "<", $filename) || return;
+#                $token = <$fh>;
+#                chomp($token);
+#                close($fh);
+#        }
+#    }
+#    return $token;
+#}
+
+
+
+
+
 1;

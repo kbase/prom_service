@@ -1206,7 +1206,7 @@ sub change_regulatory_network_namespace
 
 =head2 create_prom_constraints
 
-  $status = $obj->create_prom_constraints($params)
+  $status, $prom_constraint_id = $obj->create_prom_constraints($params)
 
 =over 4
 
@@ -1217,20 +1217,20 @@ sub change_regulatory_network_namespace
 <pre>
 $params is a create_prom_constraints_parameters
 $status is a status
+$prom_constraint_id is a prom_constraint_id
 create_prom_constraints_parameters is a reference to a hash where the following keys are defined:
-	new_prom_constraint_id has a value which is a prom_constraint_id
-	e_id has a value which is an expression_data_collection_id
-	r_id has a value which is a regulatory_network_id
 	genome_object_id has a value which is a genome_object_id
+	expression_data_collection_id has a value which is an expression_data_collection_id
+	regulatory_network_id has a value which is a regulatory_network_id
 	workspace_name has a value which is a workspace_name
 	token has a value which is an auth_token
-prom_constraint_id is a string
+genome_object_id is a string
 expression_data_collection_id is a string
 regulatory_network_id is a string
-genome_object_id is a string
 workspace_name is a string
 auth_token is a string
 status is a string
+prom_constraint_id is a string
 
 </pre>
 
@@ -1240,20 +1240,20 @@ status is a string
 
 $params is a create_prom_constraints_parameters
 $status is a status
+$prom_constraint_id is a prom_constraint_id
 create_prom_constraints_parameters is a reference to a hash where the following keys are defined:
-	new_prom_constraint_id has a value which is a prom_constraint_id
-	e_id has a value which is an expression_data_collection_id
-	r_id has a value which is a regulatory_network_id
 	genome_object_id has a value which is a genome_object_id
+	expression_data_collection_id has a value which is an expression_data_collection_id
+	regulatory_network_id has a value which is a regulatory_network_id
 	workspace_name has a value which is a workspace_name
 	token has a value which is an auth_token
-prom_constraint_id is a string
+genome_object_id is a string
 expression_data_collection_id is a string
 regulatory_network_id is a string
-genome_object_id is a string
 workspace_name is a string
 auth_token is a string
 status is a string
+prom_constraint_id is a string
 
 
 =end text
@@ -1265,8 +1265,9 @@ status is a string
 This method creates a set of Prom constraints for a given genome annotation based on a regulatory network
 and a collection of gene expression data stored on a workspace.  Parameters are specified in the
 create_prom_constraints_parameters object.  A status object is returned indicating success or failure along
-with a message on what went wrong or statistics on the retrieved objects.  The Prom constraints can then
-be used in conjunction with an FBA model using FBA Model Services.
+with a message on what went wrong or statistics on the retrieved objects.  If the method was successful, the
+ID of the new Prom constraints object is also returned. The Prom constraints can then be used in conjunction
+with an FBA model using FBA Model Services.
 
 =back
 
@@ -1286,208 +1287,205 @@ sub create_prom_constraints
     }
 
     my $ctx = $Bio::KBase::PROM::Service::CallContext;
-    my($status);
+    my($status, $prom_constraint_id);
     #BEGIN create_prom_constraints
-    
-    # input description
-    #typedef structure {
-    #    prom_constraint_id new_prom_constraint_id;
-    #    bool overwrite;
-    #    expression_data_collection_id e_id;
-    #    regulatory_network_id r_id;
-    #    genome_annotation_id a_id;
-    #    workspace_name workspace_name;
-    #    auth_token token;
-    #} create_prom_constraints_parameters;
-    my $e_id = $params->{e_id};
-    my $r_id = $params->{r_id};
-    my $a_id = $params->{a_id};
-    my $workspace_name = $params->{workspace_name};
-    my $token = $params->{token};
-    my $prom_constraint_id ="";
-    
-    
-    my $t_start = Benchmark->new;
-    
-    #set up return variables and fetch the workspace client handle
-    $status = ""; $prom_constraint_id = "";
-    my $ws  = $self->{'workspace'};
-    
-    # check if the gene expression data collection from a workspace exists
-    my $get_object_params = {
-	id => $e_id,
-	type => "Unspecified",
-	workspace => $workspace_name,
-	auth => $token,
-    };
-    my $e_exists = $ws->has_object($get_object_params);
-    if(!$e_exists) {
-	$status = "FAILURE - no expression data collection with ID $e_id found!\n".$status;
-    }
-    # check if the regulatory network data from a workspace exists
-    $get_object_params->{id}=$r_id;
-    $get_object_params->{type}="Unspecified";
-    my $r_exists = $ws->has_object($get_object_params);
-    if(!$r_exists) {
-	$status = "FAILURE - no regulatory network data with ID $r_id found!\n".$status;
-    }
-    # check if the annotation data from a workspace exists
-    $get_object_params->{id}=$a_id;
-    $get_object_params->{type}="Annotation";
-    my $a_exists = $ws->has_object($get_object_params);
-    if(!$a_exists) {
-	$status = "FAILURE - no genome annotation data with ID $a_id found!\n".$status;
-    }
-    
-    # if both data sets exist, then pull them down
-    my $found_error;
-    if($e_exists && $r_exists && $a_exists) {
 	
-	# an Annotation object will have a 'features' key that lists the feature IDs in kbase
-	# space, with a local UUID for internal mapping with the annotation object
-	# here, we create the ID to UUID mapping based on the genome annotation object    
-	my $id_2_uuid = {};
-	$get_object_params->{id}=$a_id;
-	$get_object_params->{type}="Annotation";
-	my $annot = $ws->get_object($get_object_params)->{data};
-	my $feature_counter = 0;
-	my $annot_uuid = $annot->{_wsUUID};
-	my $features = $annot->{features};
-	foreach my $f (@$features) {
-	    $id_2_uuid->{$f->{id}} = $f->{uuid};
-	    $feature_counter++;
+	# input description
+	#typedef structure {
+	#    genome_object_id genome_object_id;
+	#    expression_data_collection_id expression_data_collection_id;
+	#    regulatory_network_id regulatory_network_id;
+	#    workspace_name workspace_name;
+	#    auth_token token;
+	#} create_prom_constraints_parameters;
+	my $e_id = $params->{expression_data_collection_id};
+	my $r_id = $params->{regulatory_network_id};
+	my $genome_id = $params->{genome_object_id};
+	my $workspace_name = $params->{workspace_name};
+	my $token = $params->{token};
+	$prom_constraint_id ="";
+	
+	my $t_start = Benchmark->new;
+	
+	#set up return variables and fetch the workspace client handle
+	$status = ""; $prom_constraint_id = "";
+	my $ws  = $self->{'workspace'};
+	
+	# check if the gene expression data collection from a workspace exists
+	my $get_object_params = {
+	    id => $e_id,
+	    type => "Unspecified",
+	    workspace => $workspace_name,
+	    auth => $token,
+	};
+	my $e_exists = $ws->has_object($get_object_params);
+	if(!$e_exists) {
+	    $status = "FAILURE - no expression data collection with ID $e_id found!\n".$status;
 	}
-	print "annotation retrieved; UUID:$annot_uuid\n";
-	$status .= "  -> retrieved genome annotation with $feature_counter features.\n";
-	$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
-	
-	
-	# a regulatory network is a list where each element is a list in the form [TF, target, p1, p2]
-	# it is initially parsed in from the workspace object, at which point p1 and p2 are computed
-	my $regulatory_network = [];
-	
+	# check if the regulatory network data from a workspace exists
 	$get_object_params->{id}=$r_id;
 	$get_object_params->{type}="Unspecified";
-	my $regnet = $ws->get_object($get_object_params)->{data};
-	my @lines = split /\n/, $regnet;
-	my $reg_net_interaction_counter = 0;
-	foreach my $line (@lines) {
-	    chomp $line;
-	    my @ids = split /\t/, $line;
-	    $reg_net_interaction_counter++;
-	    if( scalar(@ids) != 2 ) { $status = "ERROR - malformed line in regulatory network data: $line\n".$status; last; }
-	    push @$regulatory_network, [$ids[0],$ids[1],-1,-1];
+	my $r_exists = $ws->has_object($get_object_params);
+	if(!$r_exists) {
+	    $status = "FAILURE - no regulatory network data with ID $r_id found!\n".$status;
+	}
+	# check if the annotation data from a workspace exists
+	$get_object_params->{id}=$genome_id;
+	$get_object_params->{type}="Genome";
+	my $genome_exists = $ws->has_object($get_object_params);
+	
+	# get the genome so we can pull the annotation object
+	my $annot;
+	if(!$genome_exists) {
+	    $status = "FAILURE - no genome object in workspace with ID $genome_id found!\n".$status;
+	} else {
+	    # if genome exists, then grab the cooresponding annotation object by reference
+	    $get_object_params->{id}=$genome_id;
+	    $get_object_params->{type}="Genome";
+	    my $genome = $ws->get_object($get_object_params)->{data};
+	    $status .= "  -> fetched genome object.\n";
+	    $annot = $ws->get_object_by_ref( {reference => $genome->{annotation_uuid}, auth => $token} )->{data};
+	    $status .= "  -> fetched hidden annotation object by reference with uuid: '$genome->{annotation_uuid}'.\n";
 	}
 	
-	print "reg network found, $reg_net_interaction_counter interactions\n";
-	$status .= "  -> retrieved regulatory network with $reg_net_interaction_counter regulatory interactions.\n";
-	$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
-	
-	# now grab the expression data and store it in a parsed object
-	# Note that this does not do any sort of error checking for IDs or anything else!!!
-	# this structure is a list, where each element cooresponds to an expermental condition, as in:
-        # [
-	#    {
-	#       geneCalls => {g1 => 1, g2 => -1 ... },
-	#       description => ,
-	#       media => 'Complete',
-	#       label => 'exp1'
-	#    },
-	#    { ... }
-	#    ...
-	# ]
-	my $expression_data_on_off_calls = [];
-	$get_object_params->{id}=$e_id;
-	$get_object_params->{type}="Unspecified";
-	my $exp_collection = $ws->get_object($get_object_params);
-	my $expression_data_id_list = $exp_collection->{data}->{expression_data};
-	$status .= "  -> retrieved expression data collection with ".scalar(@$expression_data_id_list)." experiments.\n";
-	$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
-	#loop through each experiment
-	my $n_features = -1; my $output_list = {}; my $exp_counter = 0;
-	foreach my $expression_data_id (@$expression_data_id_list) {
-	    $exp_counter++;
-	    print "exp data ( $exp_counter ) lookup: $expression_data_id \n";
-	    $get_object_params->{id}=$expression_data_id;
-	    my $exp_data = $ws->get_object($get_object_params)->{data};
+	# if both data sets exist, thecdn pull them down
+	my $found_error;
+	if($e_exists && $r_exists && $genome_exists) {
 	    
-	    push @$expression_data_on_off_calls, {geneCalls => $exp_data->{on_off_call},
-						  media=> 'unknown',
-						  description => $exp_data->{expression_data_source}."::".$exp_data->{expression_data_source_id},
-						  label => $exp_data->{id}};
+	    # an Annotation object will have a 'features' key that lists the feature IDs in kbase
+	    # space, with a local UUID for internal mapping with the annotation object
+	    # here, we create the ID to UUID mapping based on the genome annotation object    
 	    
-	}
-	$status .= "  -> retrieved all expression data for each experiment in the collection\n";
-	$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
-	
-	
-	# still with us?  if so, then onwards and upwards.  Let's actually create the prom model now!
-	if(!$found_error) {
-	    
-	    # compute the interaction probability map; this is the central component of a prom model
-	    # Note that currently there is no annotation object used.  How do we get it?  I don't see why we even need it to be honest?? Shouldn't
-	    # the Prom model be defined automatically in terms of feature ids, and then only later is that mapped to rxns or other model internals?
-	    my ($computation_log, $tfMap) = computeInteractionProbabilities($regulatory_network, $expression_data_on_off_calls, $id_2_uuid);
-	    $status .= $computation_log;
-	    $status .= "  -> computed regulation interaction probabilities\n";
+	    my $id_2_uuid = {};
+	    my $feature_counter = 0;
+	    my $annot_uuid = $annot->{_wsUUID};
+	    my $features = $annot->{features};
+	    foreach my $f (@$features) {
+		$id_2_uuid->{$f->{id}} = $f->{uuid};
+		$feature_counter++;
+	    }
+	    $status .= "  -> genome annotation has $feature_counter features.\n";
 	    $status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
-	    # print Dumper($tfMap)."\n";
 	    
-	    # actually create the prom model object (note that it is misnamed in ModelSEED!!! should be a constraints object, not
-	    # a model object)
-	    #  THIS IS HOW YOU WOULD DO IT WITH A ModelSEED object:
-	    #my $PromModelConstraints = ModelSEED::MS::PROMModel->new(
-		#				    "annotation_uuid" => "some_annotation",
-		#				    "transcriptionFactorMaps" => $tfMap,
-		#				    "id" => "junior_prom");
-	    # this is how you would do it as a package for the workspace
-	    $prom_constraint_id = $self->{'uuid_generator'}->create_str();
-	    my $prom_constraints = {
+	    # a regulatory network is a list where each element is a list in the form [TF, target, p1, p2]
+	    # it is initially parsed in from the workspace object, at which point p1 and p2 are computed
+	    my $regulatory_network = [];
+	    
+	    $get_object_params->{id}=$r_id;
+	    $get_object_params->{type}="Unspecified";
+	    my $regnet = $ws->get_object($get_object_params)->{data};
+	    my @lines = split /\n/, $regnet;
+	    my $reg_net_interaction_counter = 0;
+	    foreach my $line (@lines) {
+		chomp $line;
+		my @ids = split /\t/, $line;
+		$reg_net_interaction_counter++;
+		if( scalar(@ids) != 2 ) { $status = "ERROR - malformed line in regulatory network data: $line\n".$status; last; }
+		push @$regulatory_network, [$ids[0],$ids[1],-1,-1];
+	    }
+	    
+	    print "reg network found, $reg_net_interaction_counter interactions\n";
+	    $status .= "  -> retrieved regulatory network with $reg_net_interaction_counter regulatory interactions.\n";
+	    $status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
+	    
+	    # now grab the expression data and store it in a parsed object
+	    # Note that this does not do any sort of error checking for IDs or anything else!!!
+	    # this structure is a list, where each element cooresponds to an expermental condition, as in:
+	    # [
+	    #    {
+	    #       geneCalls => {g1 => 1, g2 => -1 ... },
+	    #       description => ,
+	    #       media => 'Complete',
+	    #       label => 'exp1'
+	    #    },
+	    #    { ... }
+	    #    ...
+	    # ]
+	    my $expression_data_on_off_calls = [];
+	    $get_object_params->{id}=$e_id;
+	    $get_object_params->{type}="Unspecified";
+	    my $exp_collection = $ws->get_object($get_object_params);
+	    my $expression_data_id_list = $exp_collection->{data}->{expression_data};
+	    $status .= "  -> retrieved expression data collection with ".scalar(@$expression_data_id_list)." experiments.\n";
+	    $status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
+	    #loop through each experiment
+	    my $n_features = -1; my $output_list = {}; my $exp_counter = 0;
+	    foreach my $expression_data_id (@$expression_data_id_list) {
+		$exp_counter++;
+		print "exp data ( $exp_counter ) lookup: $expression_data_id \n";
+		$get_object_params->{id}=$expression_data_id;
+		my $exp_data = $ws->get_object($get_object_params)->{data};
+		
+		push @$expression_data_on_off_calls, {geneCalls => $exp_data->{on_off_call},
+						      media=> 'unknown',
+						      description => $exp_data->{expression_data_source}."::".$exp_data->{expression_data_source_id},
+						      label => $exp_data->{id}};
+		#if($exp_counter==4) { last; }; # for debugging purposes, kill after 4 experiments
+	    }
+	    $status .= "  -> retrieved all expression data for each experiment in the collection\n";
+	    $status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
+	    
+	    
+	    # still with us?  if so, then onwards and upwards.  Let's actually create the prom model now!
+	    if(!$found_error) {
+		
+		# compute the interaction probability map; this is the central component of a prom model
+		# Note that currently there is no annotation object used.  How do we get it?  I don't see why we even need it to be honest?? Shouldn't
+		# the Prom model be defined automatically in terms of feature ids, and then only later is that mapped to rxns or other model internals?
+		my ($computation_log, $tfMap) = computeInteractionProbabilities($regulatory_network, $expression_data_on_off_calls, $id_2_uuid);
+		$status .= $computation_log;
+		$status .= "  -> computed regulation interaction probabilities\n";
+		$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
+		# print Dumper($tfMap)."\n";
+		
+		# use the ID server to generate a name for the prom constraints object
+		my $idserver = $self->{idserver};
+		my $prefix = $genome_id.".promconstraint.";
+		my $id_number = $idserver->allocate_id_range($prefix,1);
+		$prom_constraint_id = $prefix.$id_number;
+		my $prom_constraints = {
+			id => $prom_constraint_id,
+			annotation_uuid => $annot_uuid,
+			transcriptionFactorMaps => $tfMap,
+			expression_data_collection_id => $e_id
+		};
+		#print Dumper($prom_constraints)."\n";
+		
+		# save the prom constraints to the workspace
+		my $encoded_json_PromModelConstraints = encode_json($prom_constraints);
+		print $encoded_json_PromModelConstraints."\n";
+		my $workspace_save_obj_params = {
 		    id => $prom_constraint_id,
-		    annotation_uuid => $annot_uuid,
-		    transcriptionFactorMaps => $tfMap,
-		    expression_data_collection_id => $e_id
-	    };
-	    #print Dumper($prom_constraints)."\n";
-	    
-	    # save the prom constraints to the workspace
-	    my $encoded_json_PromModelConstraints = encode_json($prom_constraints);
-	    print $encoded_json_PromModelConstraints."\n";
-	    my $workspace_save_obj_params = {
-		id => $prom_constraint_id,
-		type => "PromConstraints",
-		data => $encoded_json_PromModelConstraints,
-		workspace => $workspace_name,
-		command => "Bio::KBase::PROM::create_prom_constraints",
-		auth => $token,
-		json => 1,
-		compressed => 0,
-		retrieveFromURL => 0,
-	    };
-	    my $object_metadata = $ws->save_object($workspace_save_obj_params);
-	    $status = $status."  -> saving the new PromModelConstraints object ID:$prom_constraint_id\n";
-	    $status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
-	    $status = "SUCCESS.\n".$status;
-	    
-	    print "Created Prom Model Constraints Object:\n";
-	    print Dumper($object_metadata)."\n";
-	    
-	    
+		    type => "PromConstraints",
+		    data => $encoded_json_PromModelConstraints,
+		    workspace => $workspace_name,
+		    command => "Bio::KBase::PROM::create_prom_constraints",
+		    auth => $token,
+		    json => 1,
+		    compressed => 0,
+		    retrieveFromURL => 0,
+		};
+		my $object_metadata = $ws->save_object($workspace_save_obj_params);
+		$status = $status."  -> saving the new PromModelConstraints object ID:$prom_constraint_id\n";
+		$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
+		$status = "SUCCESS.\n".$status;
+		
+		print "Created Prom Model Constraints Object:\n";
+		print Dumper($object_metadata)."\n";
+	    }
 	}
-    }
-    
-    
     
     
     #END create_prom_constraints
     my @_bad_returns;
     (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
+    (!ref($prom_constraint_id)) or push(@_bad_returns, "Invalid type for return variable \"prom_constraint_id\" (value was \"$prom_constraint_id\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to create_prom_constraints:\n" . join("", map { "\t$_\n" } @_bad_returns);
 	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
 							       method_name => 'create_prom_constraints');
     }
-    return($status);
+    return($status, $prom_constraint_id);
 }
 
 
@@ -2260,6 +2258,37 @@ transcriptionFactorMapTarget has a value which is a reference to a list where ea
 
 
 
+=head2 annotation_uuid
+
+=over 4
+
+
+
+=item Description
+
+the ID of the genome annotation object kept for reference in the prom_constraint object
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a string
+</pre>
+
+=end html
+
+=begin text
+
+a string
+
+=end text
+
+=back
+
+
+
 =head2 prom_contstraint
 
 =over 4
@@ -2293,7 +2322,7 @@ used to compute the interaction probabilities is provided for future reference.
 <pre>
 a reference to a hash where the following keys are defined:
 id has a value which is a prom_constraint_id
-genome_object_id has a value which is a genome_object_id
+annotation_uuid has a value which is an annotation_uuid
 transcriptionFactorMaps has a value which is a reference to a list where each element is a tfMap
 expression_data_collection_id has a value which is an expression_data_collection_id
 
@@ -2305,7 +2334,7 @@ expression_data_collection_id has a value which is an expression_data_collection
 
 a reference to a hash where the following keys are defined:
 id has a value which is a prom_constraint_id
-genome_object_id has a value which is a genome_object_id
+annotation_uuid has a value which is an annotation_uuid
 transcriptionFactorMaps has a value which is a reference to a list where each element is a tfMap
 expression_data_collection_id has a value which is an expression_data_collection_id
 
@@ -2324,17 +2353,15 @@ expression_data_collection_id has a value which is an expression_data_collection
 
 =item Description
 
-Named parameters for 'create_prom_constraints' method.  Curr
+Named parameters for 'create_prom_constraints' method.  Currently all options are required.
 
-    prom_constraint_id new_prom_constraint_id  - (required) ID of the new prom constraints object that will be created
-    expression_data_collection_id e_id         - (required) the workspace ID of the expression data collection needed to
-                                                 build the PROM constraints.
-    regulatory_network_id r_id                 - the workspace ID of the regulatory network data to use
-    genome_annotation_id a_id                  - the workspace ID of the genome annotation to use
-    workspace_name workspace_name              - the name of the workspace to use
-    auth_token token                           - the auth token that has permission to write in the specified workspace
-    bool overwrite                             - (optional) true to overwrite the prom model, false to exit on error if you
-                                                 are attempting to overwrite an existing model.  Default=false.
+    genome_object_id genome_object_id            - the workspace ID of the genome to link to the prom object
+    expression_data_collection_id
+               expression_data_collection_id     - the workspace ID of the expression data collection needed to
+                                                   build the PROM constraints.
+    regulatory_network_id regulatory_network_id  - the workspace ID of the regulatory network data to use
+    workspace_name workspace_name                - the name of the workspace to use
+    auth_token token                             - the auth token that has permission to write in the specified workspace
 
 
 =item Definition
@@ -2343,10 +2370,9 @@ Named parameters for 'create_prom_constraints' method.  Curr
 
 <pre>
 a reference to a hash where the following keys are defined:
-new_prom_constraint_id has a value which is a prom_constraint_id
-e_id has a value which is an expression_data_collection_id
-r_id has a value which is a regulatory_network_id
 genome_object_id has a value which is a genome_object_id
+expression_data_collection_id has a value which is an expression_data_collection_id
+regulatory_network_id has a value which is a regulatory_network_id
 workspace_name has a value which is a workspace_name
 token has a value which is an auth_token
 
@@ -2357,10 +2383,9 @@ token has a value which is an auth_token
 =begin text
 
 a reference to a hash where the following keys are defined:
-new_prom_constraint_id has a value which is a prom_constraint_id
-e_id has a value which is an expression_data_collection_id
-r_id has a value which is a regulatory_network_id
 genome_object_id has a value which is a genome_object_id
+expression_data_collection_id has a value which is an expression_data_collection_id
+regulatory_network_id has a value which is a regulatory_network_id
 workspace_name has a value which is a workspace_name
 token has a value which is an auth_token
 

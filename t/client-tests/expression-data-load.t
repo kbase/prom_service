@@ -6,6 +6,10 @@
 # the method to pull expression data from the CDS
 #
 
+#exit; # how else can I control what tests to run from the 'make test' target ?!?!?!?
+print "-----------------------------------------------------\n";
+print "running tests in expression-data-load.t\n";
+
 use strict;
 use warnings;
 
