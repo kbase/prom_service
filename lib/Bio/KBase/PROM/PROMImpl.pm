@@ -655,7 +655,6 @@ sub add_expression_data_to_collection
 	
 	} else {
 	    $status .= " -> no expression data collection with ID $expression_data_collecion_id found!\n";
-	    $status .= "    Did you remember to create one with the function 'create_expression_data_collection' yet?\n";
 	    $fail=1;
 	}
 	
@@ -816,7 +815,6 @@ sub change_expression_data_namespace
 	    
 	} else {
 	    $status .= " -> no expression data collection with ID $expression_data_collection_id found!\n";
-	    $status .= "    Did you remember to create one with the function 'create_expression_data_collection' yet?\n";
 	    $fail=1;
 	}
 	

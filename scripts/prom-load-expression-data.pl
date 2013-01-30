@@ -49,6 +49,7 @@ DESCRIPTION
 EXAMPLES
       Load expression data for E.coli genome kb|g.0:
       > prom-load-expression-data -g 'kb|g.0'
+      E9C193DC-6B03-11E2-8DAE-9375BC200E61
       
       
 AUTHORS
@@ -79,7 +80,7 @@ if($n_args==0) {
         my $prom;
         eval{
             $prom = get_prom_client();
-        }
+        };
         if(!$prom) {
             print "FAILURE - unable to create prom service client.  Is you PROM URL correct? see prom-url.\n";
             exit 1;
