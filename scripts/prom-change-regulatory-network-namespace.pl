@@ -27,8 +27,7 @@ DESCRIPTION
       
       -r [REG_NET_ID], --regulatory-network [REG_NET_ID]
                         indicate the id of the regulatory network with which to
-                        operate on in the workspace by providing the regulatory
-                        network ID
+                        operate on in the workspace
         
       -m [FILE], --map [FILE]
                         indicate the name of the file that contains the mapping
@@ -49,8 +48,6 @@ DESCRIPTION
                         
       -h, --help
                         diplay this help message, ignore all arguments
-                        
-                        
 
 EXAMPLES
       Change the regulatory namespace of a network given the map file 'map.txt'

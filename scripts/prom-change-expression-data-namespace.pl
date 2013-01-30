@@ -36,8 +36,7 @@ DESCRIPTION
       
       -e [EXP_ID], --expression-data [EXP_ID]
                         indicate the id of the expression data collection with
-                        which to operate on in the workspace by providing the
-                        expression data collection ID
+                        which to operate on in the workspace
         
       -m [FILE], --map [FILE]
                         indicate the name of the file that contains the mapping

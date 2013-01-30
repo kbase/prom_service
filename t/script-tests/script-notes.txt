@@ -1,0 +1,79 @@
+
+NOTE: This file is just a reference of the commands we need to write test for, and should be used for reference
+
+>kbfba-url http://bio-data-1.mcs.anl.gov/services/fbaServices
+>kbws-url http://bio-data-1.mcs.anl.gov/services/fba_gapfill
+>prom-url http://localhost:7069
+
+
+>kbfba-loadgenome 'kb|g.372'
+Genome successfully loaded to workspace:
+Object ID: kb|g.372
+Type: Genome
+Workspace: mtest_2
+Owner: msneddon
+Instance: 0
+Moddate: 2013-01-30T19:37:17
+Last cmd: 0
+Modified by: msneddon
+Perm ref: 74AB78FE-6B14-11E2-86E6-164C7082D269
+Checksum: 0e8972a5f8ada17742ba182ffdbe653d
+scientific_name: Shewanella oneidensis MR-1
+domain: Bacteria
+number_features: 4676
+id: kb|g.372
+gc: 2354775
+size: 5131424
+
+
+>prom-load-expression-data -g 'kb|g.372' -v
+...
+58FF0674-6B15-11E2-98CA-2E7CBC200E61
+
+
+>prom-load-regulatory-network -g 'kb|g.20848' -v
+SUCCESS.
+  -> found 1 regulome model(s) for genome kb|g.20848
+  -> possible models are :
+       -kb|g.20848.regulome.0 (regulomeSource:REGPRECISE_CURATED, tfRegulonCount:60)
+  -> selected regulome model with the most regulons (kb|g.20848.regulome.0)
+  -> compiled regulatory network with 830 regulatory interactions
+  -> saving the regulatory network to your workspace with ID:9F4C084C-6B16-11E2-98CA-2E7CBC200E61
+
+9F4C084C-6B16-11E2-98CA-2E7CBC200E61
+
+
+
+>prom-change-regulatory-network-namespace -r '9F4C084C-6B16-11E2-98CA-2E7CBC200E61' -m '/t/client-tests/m' -v
+SUCCESS.
+WARNING - cannot find match for TF 'kb|g.20848.CDS.2114', skipping this interaction
+...
+WARNING - cannot find match for target 'kb|g.20848.CDS.4261', skipping this interaction
+  -> saving the new regulatory network to your workspace with ID:D2217432-6B16-11E2-98CA-2E7CBC200E61
+  -> able to map 777 of 830 original interactions
+  
+D2217432-6B16-11E2-98CA-2E7CBC200E61
+
+
+
+>prom-create-constraints -g 'kb|g.372' -e '58FF0674-6B15-11E2-98CA-2E7CBC200E61' -r 'D2217432-6B16-11E2-98CA-2E7CBC200E61' -v
+SUCCESS.
+  -> fetched genome object.
+  -> fetched hidden annotation object by reference with uuid: '74298272-6B14-11E2-9A6C-3B467082D269'.
+  -> genome annotation has 4676 features.
+      5 wallclock secs ( 0.12 usr +  0.51 sys =  0.63 CPU)
+  -> retrieved regulatory network with 777 regulatory interactions.
+      5 wallclock secs ( 0.12 usr +  0.52 sys =  0.64 CPU)
+  -> retrieved expression data collection with 245 experiments.
+      5 wallclock secs ( 0.13 usr +  0.53 sys =  0.66 CPU)
+  -> retrieved all expression data for each experiment in the collection
+     133 wallclock secs ( 1.15 usr +  3.33 sys =  4.48 CPU)
+  -> computed regulation interaction probabilities
+     133 wallclock secs ( 1.40 usr +  3.33 sys =  4.73 CPU)
+  -> saving the new PromModelConstraints object ID:kb|g.372.promconstraint.7
+     134 wallclock secs ( 1.40 usr +  3.33 sys =  4.73 CPU)
+
+kb|g.372.promconstraint.7
+
+
+
