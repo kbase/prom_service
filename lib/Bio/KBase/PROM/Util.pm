@@ -22,25 +22,27 @@ use strict;
 use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
-our @EXPORT_OK = qw(computeInteractionProbabilities);
+our @EXPORT_OK = qw(computeInteractionProbabilities getPromURL get_prom_client get_auth_token);
+
+our $defaultPromURL = "http://localhost:7069";
 
 
 
-        # Expected structure of the regulatory network:
-	# a regulatory network is a list where each element is a list in the form [TF, target, p1, p2]
-        #
-	# Expected strucure of the expression data object
-	# this structure is a list, where each element cooresponds to an expermental condition, as in:
-        # [
-	#    {
-	#       geneCalls => {g1 => 1, g2 => -1 ... },
-	#       description => ,
-	#       media => 'Complete',
-	#       label => 'exp1'
-	#    },
-	#    { ... }
-	#    ...
-	# ]
+# Expected structure of the regulatory network:
+# a regulatory network is a list where each element is a list in the form [TF, target, p1, p2]
+#
+# Expected strucure of the expression data object
+# this structure is a list, where each element cooresponds to an expermental condition, as in:
+# [
+#    {
+#       geneCalls => {g1 => 1, g2 => -1 ... },
+#       description => ,
+#       media => 'Complete',
+#       label => 'exp1'
+#    },
+#    { ... }
+#    ...
+# ]
 sub computeInteractionProbabilities {
     my ($reg_network, $expression_data, $id_2_uuid_map) = @_;
     
@@ -159,32 +161,74 @@ sub computeInteractionProbabilities {
 
 };
 
+# simply returns a new copy of the PROM client based on the currently set URL
+sub get_prom_client {
+    return Bio::KBase::PROM::Client->new(getPromURL());
+}
+
 
 # auth method used by scripts, copied from workspace services Helper.pm
-#sub auth {
-#    my $token = shift;
-#    if ( defined $token ) {
-#        if (defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
-#                $ENV{KB_AUTH_TOKEN} = $token;
-#        } else {
-#                my $filename = "$ENV{HOME}/.kbase_auth";
-#                open(my $fh, ">", $filename) || return;
-#                print $fh $token;
-#                close($fh);
-#        }
-#    } else {
-#        my $filename = "$ENV{HOME}/.kbase_auth";
-#        if (defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
-#                $token = $ENV{KB_AUTH_TOKEN};
-#        } elsif ( -e $filename ) {
-#                open(my $fh, "<", $filename) || return;
-#                $token = <$fh>;
-#                chomp($token);
-#                close($fh);
-#        }
-#    }
-#    return $token;
-#}
+sub get_auth_token {
+    my $token = shift;
+    if ( defined $token ) {
+        if (defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
+                $ENV{KB_AUTH_TOKEN} = $token;
+        } else {
+                my $filename = "$ENV{HOME}/.kbase_auth";
+                open(my $fh, ">", $filename) || return;
+                print $fh $token;
+                close($fh);
+        }
+    } else {
+        my $filename = "$ENV{HOME}/.kbase_auth";
+        if (defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
+                $token = $ENV{KB_AUTH_TOKEN};
+        } elsif ( -e $filename ) {
+                open(my $fh, "<", $filename) || return;
+                $token = <$fh>;
+                chomp($token);
+                close($fh);
+        }
+    }
+    return $token;
+}
+
+
+sub getPromURL {
+    my $set = shift;
+    my $CurrentURL;
+    if (defined($set)) {
+    	if ($set eq "default") {
+            $set = $defaultPromURL;
+        }
+    	$CurrentURL = $set;
+    	if (!defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
+	    my $filename = "$ENV{HOME}/.kbase_promURL";
+	    open(my $fh, ">", $filename) || return;
+	    print $fh $CurrentURL;
+	    close($fh);
+    	} elsif ($ENV{KB_PROMURL}) {
+    	    $ENV{KB_PROMURL} = $CurrentURL;
+    	}
+    } elsif (!defined($CurrentURL)) {
+    	if (!defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
+	    my $filename = "$ENV{HOME}/.kbase_promURL";
+	    if( -e $filename ) {
+		open(my $fh, "<", $filename) || return;
+		$CurrentURL = <$fh>;
+		chomp $CurrentURL;
+		close($fh);
+	    } else {
+	    	$CurrentURL = $defaultPromURL;
+	    }
+    	} elsif (defined($ENV{KB_PROMURL})) {
+	    	$CurrentURL = $ENV{KB_PROMURL};
+	    } else {
+		$CurrentURL = $defaultPromURL;
+    	} 
+    }
+    return $CurrentURL;
+}
 
 
 
