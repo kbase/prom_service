@@ -22,12 +22,14 @@ Matt DeJongh (dejongh@hope.edu)
 DEPLOYMENT INSTRUCTIONS
 --------------------------
 
-Update the 'deploy.cfg' file with the endpoints of the services you wish to deploy
-against.  Currently they are configured to point to development servers.
+IMPORTANT! : you must update the 'deploy.cfg' file in this directory with the correct endpoints
+of the services you want to deploy against.  Right now the checked-in deployment configuration
+operates on dev servers and is configured to work on magellan instances (essex instances booted
+from 'cloud.mcs.anl.gov' will not work without a minor change).
 
-Deploy using the standard kbase deployment process after the dev_container is
-configured and other dependent modules are checked out (see DEPENDENCIES file),
-that is:
+
+After you have updated deploy.cfg, you can deploy using the standard kbase deployment process after the dev_container is
+configured and other dependent modules are checked out (see DEPENDENCIES file), that is:
 
 cd /kb/dev_container/modules
 make
