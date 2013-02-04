@@ -93,7 +93,7 @@ deploy: deploy-all
 deploy-all: deploy-client deploy-scripts deploy-service deploy-docs
 	echo "OK... Done deploying ALL artifacts (includes clients, docs, scripts and service) of $(SERVICE)."
 
-deploy-client: deploy-docs
+deploy-client: deploy-scripts deploy-docs
 	mkdir -p $(TARGET)/lib/Bio/KBase/$(SERVICE_NAME)
 	mkdir -p $(TARGET)/lib/biokbase/$(SERVICE_NAME)
 	mkdir -p $(TARGET)/lib/javascript/$(SERVICE_NAME)
