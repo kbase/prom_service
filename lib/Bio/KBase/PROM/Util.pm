@@ -171,7 +171,7 @@ sub get_prom_client {
 sub get_auth_token {
     my $token = shift;
     if ( defined $token ) {
-        if (defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
+        if (defined($ENV{KB_RUNNING_IN_IRIS})) {
                 $ENV{KB_AUTH_TOKEN} = $token;
         } else {
                 my $filename = "$ENV{HOME}/.kbase_auth";
@@ -181,7 +181,7 @@ sub get_auth_token {
         }
     } else {
         my $filename = "$ENV{HOME}/.kbase_auth";
-        if (defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
+        if (defined($ENV{KB_RUNNING_IN_IRIS})) {
                 $token = $ENV{KB_AUTH_TOKEN};
         } elsif ( -e $filename ) {
                 open(my $fh, "<", $filename) || return;
@@ -202,7 +202,7 @@ sub getPromURL {
             $set = $defaultPromURL;
         }
     	$CurrentURL = $set;
-    	if (!defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
+    	if (!defined($ENV{KB_RUNNING_IN_IRIS})) {
 	    my $filename = "$ENV{HOME}/.kbase_promURL";
 	    open(my $fh, ">", $filename) || return;
 	    print $fh $CurrentURL;
@@ -211,7 +211,7 @@ sub getPromURL {
     	    $ENV{KB_PROMURL} = $CurrentURL;
     	}
     } elsif (!defined($CurrentURL)) {
-    	if (!defined($ENV{KB_NO_FILE_ENVIRONMENT})) {
+    	if (!defined($ENV{KB_RUNNING_IN_IRIS})) {
 	    my $filename = "$ENV{HOME}/.kbase_promURL";
 	    if( -e $filename ) {
 		open(my $fh, "<", $filename) || return;
