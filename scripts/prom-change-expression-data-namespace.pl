@@ -137,14 +137,19 @@ if($n_args==0) {
             my $token = get_auth_token();
             #make the call
             my $status;
-            eval {
-              $status =
+            if($verbose) {
+               $status =
                  $prom->change_expression_data_namespace($exp_data_id,$feature_map,$ws, $token);
-            };
-    
-            if(!$status) {
-                print "FAILURE - unknown internal server error. Run with --help for usage.\n";
-                exit 1;
+            } else {
+               eval {
+                 $status =
+                    $prom->change_expression_data_namespace($exp_data_id,$feature_map,$ws, $token);
+               };
+       
+               if(!$status) {
+                   print "FAILURE - unknown internal server error. Run with --help for usage.\n";
+                   exit 1;
+               }
             }
             if($verbose) { print $status."\n"; }
             if($status =~ m/FAILURE/) {

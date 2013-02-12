@@ -770,7 +770,9 @@ sub change_expression_data_namespace
 	    
 	    #loop over each expression data set and update it.
 	    my $experiment_ids = $collection->{data}->{expression_data};
+	    my $counter=0;
 	    foreach my $exp (@$experiment_ids) {
+		#if($counter<807) { $counter++; next; }
 		$get_object_params->{id} = $exp;
 		my $exp_obj = $ws->get_object($get_object_params);
 		my $data_to_update = $exp_obj->{data}->{on_off_call};
@@ -787,6 +789,7 @@ sub change_expression_data_namespace
 			$new_exp_data->{$gene} = $data_to_update->{$gene};
 		    }
 		}
+		print $expression_data_collection_id.":".$counter++.": relabeling exp data.\n";
 		
 		#push back the new object
 		my $new_exp_object = {
@@ -801,7 +804,7 @@ sub change_expression_data_namespace
 		    type => "Unspecified",
 		     data => $encoded_json_data_exp,
 		    workspace => $workspace_name,
-		    command => "Bio::KBase::PROM::add_expression_data_to_collection",
+		    command => "Bio::KBase::PROM::change_expression_data_namespace",
 		    auth => $token,
 		    json => 1,
 		    compressed => 0,

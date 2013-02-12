@@ -48,7 +48,9 @@ DESCRIPTION
 
       -v, --verbose
                         in addition to the workspace regulatory network ID, which
-                        will be on the last line, status messages are displayed.
+                        will be on the last line, status messages are displayed; more
+                        verbose errors are also displayed, which may be useful for
+                        debugging
 
       -h, --help
                         diplay this help message, ignore all arguments
@@ -105,17 +107,21 @@ if($n_args==0) {
                 #grab auth info
                 my $token = get_auth_token();
                 #make the call
-                my $status; my $prom_id; 
-                #eval {
-                    my $create_prom_constraints_parameters = {
-                        genome_object_id => $genomeId,
-                        expression_data_collection_id => $expressionId,
-                        regulatory_network_id => $regNetworkId,
-                        workspace_name => $ws,
-                        token =>  $token
-                    };
+                my $status; my $prom_id;
+                my $create_prom_constraints_parameters = {
+                    genome_object_id => $genomeId,
+                    expression_data_collection_id => $expressionId,
+                    regulatory_network_id => $regNetworkId,
+                    workspace_name => $ws,
+                    token =>  $token
+                };
+                if($verbose) {
                     ($status, $prom_id) = $prom->create_prom_constraints($create_prom_constraints_parameters);
-               # };
+                } else {
+                    eval {
+                          ($status, $prom_id) = $prom->create_prom_constraints($create_prom_constraints_parameters);
+                    };
+                }
         
                 if(!$status) {
                     print "FAILURE - unknown internal server error. Run with --help for usage.\n";

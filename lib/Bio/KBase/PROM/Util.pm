@@ -207,7 +207,7 @@ sub getPromURL {
 	    open(my $fh, ">", $filename) || return;
 	    print $fh $CurrentURL;
 	    close($fh);
-    	} elsif ($ENV{KB_PROMURL}) {
+    	} else {
     	    $ENV{KB_PROMURL} = $CurrentURL;
     	}
     } elsif (!defined($CurrentURL)) {

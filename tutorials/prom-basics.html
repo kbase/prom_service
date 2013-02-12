@@ -1,0 +1,274 @@
+<h1>Building Combined Regulatory and Metabolic Models with PROM</h1>
+
+<h4>Purpose</h4>
+This tutorial covers basic usage of the PROM (Probabilistic Regulation of Metabolism) service, which
+enables the creation of FBA models with regulatory network constraints inferred from gene expression data [1].
+After the tuturial, you will be able to retrieve gene expression and regulatory network data from KBase,
+solve the most common gene ID problems so that all the data can be placed in the same namespace, build a set
+of probabilistic constraints, and finally associate the PROM constraints with an FBA model in order to simulate
+transcription factor knockout phenotypes.
+
+<p> [1] Chandrasekarana S. and Price ND. Probabilistic integrative modeling of genome-scale metabolic and
+regulatory networks in Escherichia coli and Mycobacterium tuberculosis. PNAS (2010) 107:17845-50.
+</p>
+
+<h4>Prerequisite Activities</h4>
+This tutorial assumes that you have basic familiarity with the KBase command line scripting environment,
+the KBase FBA modeling tools, and experience working with the KBase workspace services.
+
+<h4>Related Tutorials</h4>
+none.
+
+
+
+<h2>Introduction</h3>
+<p>PROM is a method for creating FBA model constraints based on a regulatory network and gene expression
+data.  Gene expression data is used to build a probablistic interaction map of each transcription factor to
+each of its target genes.  These interaction probabilities are then used to constrain the flux of reactions
+under simulated transcription factor knockout conditions.  KBase provides access to a growing number of
+FBA models, expression datasets, and reconstructed regulatory networks, thus providing a useful platform
+for developing FBA models with PROM constraints.</p>
+<p>The KBase PROM service is an implementaton of the PROM method originally described in Chandrasekarana and
+Price, 2010.  For additional technical details on the method, please refer to this publication.</p>
+
+
+
+<h2>Create an FBA Model</h2>
+<p>Before you can create a set of PROM constraints, you need to have a functional FBA model.  KBase
+provides a number of options for retrieving existing models or automatically building your own from
+a genomic sequence and annotation.  For more details, consult the FBA modeling services.  For the
+purposes of this tutorial, we will begin by importing a published model and genome annotation from
+a public workspace.  After you have configured your command line environment, you can do this
+by cloning the public workspace named 'PublishedFBAModels'.</p>
+<pre>
+    > kbws-clone prom_ws r -w PublishedFBAModels
+</pre>
+<p>Here we copy everything in the workspace named PublishedFBAModels and save it in a new workspace
+which is called 'prom_ws'.  We also set a flag named 'r' to specify that other users can have read-only
+access to our workspace.  Stricter or more open permissions are also possible.
+</p>
+<p>You should now interogate your new workspace to determine what was created.  At the time of this writing,
+there are two models and two genome objects which provide gene annotations and sequence information for the
+genomes which were used to construct the models.  List these objects by entering the following commands:
+</p>
+<pre>
+     > kbws-workspace prom_ws
+     Current workspace is:
+     prom_ws
+     > kbws-listobj
+     ID         Type   WS                  Vers Owner    Last modby Cmd                     Moddate 
+     224308.1   Genome 2013-02-12T20:01:16 1    msneddon msneddon   add_feature_translation msneddon
+     kb|g.1870  Genome 2013-02-12T20:01:16 1    msneddon msneddon   add_feature_translation msneddon
+     iJR904     Model  2013-02-12T20:01:16 0    msneddon msneddon   import_fbamodel         msneddon
+     iBsu1103V2 Model  2013-02-12T20:01:16 0    msneddon msneddon   import_fbamodel         msneddon
+</pre>
+<p>
+In this tutorial, we will be using the FBA model named iJR904, a curated <i>E. coli</i> model (Reed et al,
+Genome Biol. 2003;4(9):R54), which has already been linked to a KBase genome listed here with id 'kb|g.1870'.
+The model and genome object are now in our workspace and ready to use.
+</p>
+
+
+
+<h2>Load Gene Expression Data</h2>
+<p>Next you will need to import gene expression data into your workspace.  The PROM service provides a
+simplified script to pull gene expression data into your workspace from the CDM in a format that is compatible
+with PROM.  You can try to load all expression data directly linked to the genome kb|g.1870 with the following
+command:</p>
+<pre>
+    > prom-load-expression-data -g 'kb|g.1870'
+</pre>
+<p>However running this command informs us that the KBase CDM does not currently have gene expression data
+associated with this genome.  You will see an error message that states:</p>
+<pre>
+    FAILURE - no gene expression experiments found for the specified genome.
+      -> searching the KBase Central Data Store for expression data for genome: kb|g.1870
+</pre>
+<p>It will often be the case that little experimental data exists for a particular strain or genome in
+the database.  In this case, no data exists at all.  Fortunately, data for a related strain or genome
+often is available.  Depending on how similiar the strains are, it may be valid to attempt to use data
+that was originally mapped to a different genome.  In our case, we fortunately know that another <i>E.
+coli</i> genome exists in KBase with ID 'kb|g.0', so we can attempt to use data from that genome instead.
+</p>
+<pre>
+    > prom-load-expression-data -g 'kb|g.0'
+</pre>
+<p>Indeed, for this genome, a significant amount of gene expression data exists.  Note that this method
+can take several minutes or more to complete due to the large amount of data that is copied to your
+workspace.  Adding a -v option will allow you to retrieve stats on the data that was pulled.  The
+output of this command is simply a workspace ID which identifies your expression data collection.  In our
+case, it was named: </p>
+<pre>
+    3CB7B210-7554-11E2-8D7C-2A08F545F304
+</pre>
+<p>Since this is an inconvenient name to remember, you can relabel the object with a simpler name:
+</p>
+<pre>
+    > kbws-move 'Unspecified' '3CB7B210-7554-11E2-8D7C-2A08F545F304' 'expression_data_collection'
+    Object moved to:
+    prom_ws/Unspecified/expression_data_collection
+
+</pre>
+<p> Now if you look at your workspace meta data, you will see that your workspace is populated with more than
+900 new objects.  These new objects each correspond to a condition in which gene expression data was
+measured and is available.
+</p>
+<pre>
+    > kbws-meta
+    Workspace ID: prom_published_fba_2
+    Owner: msneddon
+    Moddate: 2013-02-12T19:45:44
+    Objects: 913
+    User permission: a
+    Global permission:r
+    Workspace meta:
+    1
+</pre>
+<p>
+Great, you now have gene expression data for <i>E. coli</i> in your workspace.  Unfortunately, that data refers to
+genes by KBase feature IDs which are in the KBase genome kb|g.0.  You need gene expression data mapped to kb|g.1870,
+which is the genome that is referenced by the model.  These genomes are very similar, so you can establish a mapping between
+the IDs of the two genomes.  There are a variety of ways to do this, but a simple option, if both genomes are in the CDM, is
+to use the corresponds method of the CDM API.
+</p>
+<pre>
+    > corresponds 'kb|g.0' 'kb|g.1870' > raw_map.txt
+</pre>
+<p>
+This command will attempt to establish a mapping between features from kb|g.0 to features of kb|g.1870 and save the output
+to a file named raw_map.txt on your local file system.  You can inspect the contents of this file like so:
+</p>
+<pre>
+    > cat raw_map.txt
+    kb|g.0.peg.2173	100.00	5	4	820	820	2	818	818	0.813	kb|g.1870.peg.1148
+    kb|g.0.peg.3016	100.00	6	1	310	310	1	310	310	0.860	kb|g.1870.peg.2046
+    kb|g.0.peg.4288	100.00	7	1	428	428	1	428	428	0.901	kb|g.1870.peg.3069
+    ...
+</pre>
+<p>
+The first column contains a feature from kb|g.0, the last column contains a mapping in kb|g.1870, and the inner columns
+display some statistics about the mapping, which you can learn more about by looking at documentation for the
+corresponds method.  Here you just need a two column file that contains the kb|g.0 features in one column, and the
+kb|g.1870 features in the second column.  Do this by using the standard linux 'cut' method to extract the 1st and the
+11th column, and save the result to a file.
+</p>
+<pre>
+    > cat raw_map.txt | cut -f 1,11 > 0_to_1870_map.txt
+    > cat 0_to_1870_map.txt
+    kb|g.0.peg.2173	kb|g.1870.peg.1148
+    kb|g.0.peg.3016	kb|g.1870.peg.2046
+    kb|g.0.peg.4288	kb|g.1870.peg.3069
+    ...
+</pre>
+<p>
+Armed with a reasonable mapping between the genomes, you can now relabel the expression data set in terms of kb|g.1870 using
+a PROM service method.
+</p>
+<pre>
+    > prom-change-expression-data-namespace -e 'expression_data_collection' -m '0_to_1870_map.txt' -v
+</pre>
+<p>
+And that's it.  Running with the -v option provides some extra information about the relabeling process. The
+'expression_data_collection' is now defined in terms of kb|g.1870 and can now be used in conjunction with the
+FBA model iJR904.  Note that again this step may take a several minutes to complete due to the amount of gene
+expression data that must be processed.
+</p>
+
+
+
+<h2>Load Regulatory Network</h2>
+<p>The next step towards building a PROM constraints object is to load a regulatory network.  As with expression data,
+regulatory network data is not always available for the genome we are insterested. For this particular genome, however,
+we are in luck.  Run the following command to load a regulatory network model for genome 'kb|g.1870'  </p>
+<pre>
+    prom-load-regulatory-network -g 'kb|g.1870' -v
+    SUCCESS.
+      -> found 1 regulome model(s) for genome kb|g.1870
+      -> possible models are :
+           -kb|g.1870.regulome.301 (regulomeSource:REGPRECISE_CURATED, tfRegulonCount:75)
+      -> selected regulome model with the most regulons (kb|g.1870.regulome.301)
+      -> compiled regulatory network with 1546 regulatory interactions
+      -> saving the regulatory network to your workspace with ID:86559BE0-7562-11E2-9E83-E214F545F304
+
+    86559BE0-7562-11E2-9E83-E214F545F304
+</pre>
+<p>Just as we did with the expression data collection, rename the regulatory network so that it is easier to manipulate:
+</p>
+<pre>
+    > kbws-move 'Unspecified' '86559BE0-7562-11E2-9E83-E214F545F304' 'regulatory_network'
+    Object moved to:
+    prom_ws/Unspecified/regulatory_network
+</pre>
+<p>If a regulatory network is not available for your genome, you would have recieved an error message stating this.  If this
+was the case, we again could have pulled a regulatory network for a related <i>E. coli</i> genome, mapped the gene features
+from one variant to the other, and used the method named 'prom-change-regulatory-network-namespace'.  It works the same way
+as the method to change the expression data namespace, except that it creates a new regulatory network object in your workspace.
+</p>
+
+
+
+<h2>Create PROM Constraints</h2>
+<p>You can now create a set of PROM constraints from the expression data collection, the regulatory network, and the
+genome object.  To do so, call the prom-create-constraints method with flags to indicate the data objects that
+you created earlier.</p>
+<pre>
+    > prom-create-constraints -g 'kb|g.1870' -e 'expression_data_collection' -r 'regulatory_network' -v
+</pre>
+<p>This method may also take a few minutes to run because it must pull all the expression data in the collection
+to calculate the transcriptional interaction probabilities.  If you ran the method with the '-v' option as indicated,
+and the method was successful, a status message will be displayed.
+</p>
+<pre>
+    
+</pre>
+
+
+
+<h2>Run an FBA Model with PROM Constraints</h2>
+<p>You can finally run the FBA model with the new PROM constraints.  To associate the PROM constraints object
+with the FBA, call runFBA:</p>
+<pre>
+    > runFBA -p 'kb|g.1870.prom.4'
+    Flux balance analysis successful:
+    Object ID: iJR904.fba.4
+    Type: FBA
+    Workspace: prom_ws
+    Owner: msneddon
+    Instance: 0
+    Moddate: 2013-02-12T19:04:09
+    Last cmd: runfba
+    Modified by: msneddon
+    Perm ref: FAEA3B94-7546-11E2-B4AE-36E76F82D269
+    Checksum: e42fd1db0389510403dab75bdd7b5b1b
+    object_value: 0
+    notes: 
+    media_uuid: 36A4741E-3A6A-11E2-837B-C916C85230E2
+</pre>
+<p>You were able to successfully run the FBA model with the PROM constraints object.  As with any FBA run, you can view
+the results by exporting the results object to an HTML file that you can open in your browser using the kbfba-exportfba
+method.  See the FBA Modeling documenation for for details on visualizing the results of a model.
+</p>
+<p>If you closely inspected the results, you will discover that the results are identical to running an FBA model without
+PROM constraints.  The reason is that PROM constraints only influence a model if you simulate a transcriptional regulator
+knockout strain.  Try running the following simulation with a TF knockout:  </p>
+<pre>
+    > runFBA -p 'kb|g.1870.prom.4' --geneko "kb|g.20848.cds.4235"
+    Flux balance analysis successful:
+    Object ID: iJR904.fba.5
+    Type: FBA
+    Workspace: prom_ws
+    Owner: msneddon
+    Instance: 0
+    Moddate: 2013-02-12T19:04:09
+    Last cmd: runfba
+    Modified by: msneddon
+    Perm ref: FAEA3B94-7546-11E2-B4AE-36E76F82D269
+    Checksum: e42fd1db0389510403dab75bdd7b5b1b
+    object_value: 0
+    notes: 
+    media_uuid: 36A4741E-3A6A-11E2-837B-C916C85230E2
+</pre>
+<p>
+By leveraging gene expression data together with a regulatory network, you can now use PROM to increase the predictive
+power of your model to transcription factor knockout strains.
+</p>

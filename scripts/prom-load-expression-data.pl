@@ -39,7 +39,9 @@ DESCRIPTION
                         
       -v, --verbose
                         in addition to the expression data collection ID, which
-                        will be on the last line, status messages are displayed.
+                        will be on the last line, status messages are displayed; more
+                        verbose errors are also displayed, which may be useful for
+                        debugging
                         
       -h, --help
                         diplay this help message, ignore all arguments
@@ -88,15 +90,19 @@ if($n_args==0) {
         #grab auth info
         my $token = get_auth_token();
         #make the call
-        my $status; my $expression_collection_id; 
-        eval {
+        my $status; my $expression_collection_id;
+        if($verbose) {
           ($status,$expression_collection_id) =
              $prom->get_expression_data_by_genome($genomeId,$ws, $token);
-        };
-
-        if(!$status) {
-            print "FAILURE - unknown internal server error. Run with --help for usage.\n";
-            exit 1;
+        } else {
+          eval {
+            ($status,$expression_collection_id) =
+               $prom->get_expression_data_by_genome($genomeId,$ws, $token);
+          };
+          if(!$status) {
+              print "FAILURE - unknown internal server error. Run with --help for usage.\n";
+              exit 1;
+          }
         }
         if($verbose) { print $status."\n"; }
         if($expression_collection_id ne '') {
