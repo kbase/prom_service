@@ -219,7 +219,21 @@ to calculate the transcriptional interaction probabilities.  If you ran the meth
 and the method was successful, a status message will be displayed.
 </p>
 <pre>
-    
+    SUCCESS.
+      -> fetched genome object.
+      -> fetched hidden annotation object by reference with uuid: 'F874E632-6E81-11E2-9490-10D66F82D269'.
+      -> genome annotation has 4655 features.
+          5 wallclock secs ( 0.09 usr +  0.37 sys =  0.46 CPU)
+      -> retrieved regulatory network with 3 regulatory interactions.
+          5 wallclock secs ( 0.09 usr +  0.38 sys =  0.47 CPU)
+      -> retrieved expression data collection with 907 experiments.
+          5 wallclock secs ( 0.09 usr +  0.38 sys =  0.47 CPU)
+      -> retrieved all expression data for each experiment in the collection
+         583 wallclock secs ( 3.59 usr +  9.16 sys = 12.75 CPU)
+      -> computed regulation interaction probabilities
+         583 wallclock secs ( 3.59 usr +  9.16 sys = 12.75 CPU)
+      -> saving the new PromModelConstraints object ID:kb|g.1870.promconstraint.3
+         584 wallclock secs ( 3.60 usr +  9.17 sys = 12.77 CPU)
 </pre>
 
 
@@ -228,31 +242,31 @@ and the method was successful, a status message will be displayed.
 <p>You can finally run the FBA model with the new PROM constraints.  To associate the PROM constraints object
 with the FBA, call runFBA:</p>
 <pre>
-    > runFBA -p 'kb|g.1870.prom.4'
+    > runFBA iJR904 -p 'kb|g.1870.promconstraint.3'
     Flux balance analysis successful:
     Object ID: iJR904.fba.4
     Type: FBA
-    Workspace: prom_ws
+    Workspace: prom_published_fba_2
     Owner: msneddon
     Instance: 0
-    Moddate: 2013-02-12T19:04:09
+    Moddate: 2013-02-12T23:00:54
     Last cmd: runfba
     Modified by: msneddon
-    Perm ref: FAEA3B94-7546-11E2-B4AE-36E76F82D269
-    Checksum: e42fd1db0389510403dab75bdd7b5b1b
-    object_value: 0
+    Perm ref: 0DB89574-7568-11E2-AEF2-F6187082D269
+    Checksum: 5363d7e64e3620d52f4efd91f8f00bd4
+    object_value: 2.18666
     notes: 
     media_uuid: 36A4741E-3A6A-11E2-837B-C916C85230E2
 </pre>
 <p>You were able to successfully run the FBA model with the PROM constraints object.  As with any FBA run, you can view
 the results by exporting the results object to an HTML file that you can open in your browser using the kbfba-exportfba
-method.  See the FBA Modeling documenation for for details on visualizing the results of a model.
+method.  See the FBA Modeling documenation for for details on visualizing and analyzing the results of a model.
 </p>
 <p>If you closely inspected the results, you will discover that the results are identical to running an FBA model without
 PROM constraints.  The reason is that PROM constraints only influence a model if you simulate a transcriptional regulator
 knockout strain.  Try running the following simulation with a TF knockout:  </p>
 <pre>
-    > runFBA -p 'kb|g.1870.prom.4' --geneko "kb|g.20848.cds.4235"
+    > runFBA iJR904 -p 'kb|g.1870.promconstraint.3' --geneko "kb|g.20848.cds.4235"
     Flux balance analysis successful:
     Object ID: iJR904.fba.5
     Type: FBA
@@ -268,7 +282,9 @@ knockout strain.  Try running the following simulation with a TF knockout:  </p>
     notes: 
     media_uuid: 36A4741E-3A6A-11E2-837B-C916C85230E2
 </pre>
-<p>
-By leveraging gene expression data together with a regulatory network, you can now use PROM to increase the predictive
-power of your model to transcription factor knockout strains.
+<p>By leveraging gene expression data together with a regulatory network, you can now use PROM to increase the predictive
+power of your model for transcription factor knockout strains.
 </p>
+
+
+<br><br><br><br>

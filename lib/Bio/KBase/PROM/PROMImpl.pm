@@ -1443,7 +1443,11 @@ sub create_prom_constraints
 		my $idserver = $self->{idserver};
 		my $prefix = $genome_id.".promconstraint.";
 		my $id_number = $idserver->allocate_id_range($prefix,1);
-		$prom_constraint_id = $prefix.$id_number;
+		if($id_number) {
+		    if($id_number ne '') {
+			$prom_constraint_id = $prefix.$id_number;
+		    } else { $prom_constraint_id = $prefix."x"; }
+		} else { $prom_constraint_id = $prefix."x"; }
 		my $prom_constraints = {
 			id => $prom_constraint_id,
 			annotation_uuid => $annot_uuid,

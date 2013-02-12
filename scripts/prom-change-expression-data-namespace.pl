@@ -53,7 +53,9 @@ DESCRIPTION
                         
       -v, --verbose
                         in addition to the expression data collection ID, which
-                        will be on the last line, status messages are displayed.
+                        will be on the last line, status messages are displayed;
+                        more verbose errors are also displayed, which may be useful
+                        for debugging
                         
       -h, --help
                         diplay this help message, ignore all arguments

@@ -121,14 +121,14 @@ if($n_args==0) {
                     eval {
                           ($status, $prom_id) = $prom->create_prom_constraints($create_prom_constraints_parameters);
                     };
+                    if(!$status) {
+                         print "FAILURE - unknown internal server error. Run with --help for usage.\n";
+                         print "This error is often caused if you provided an ID of an expression data or regulatory network\n";
+                         print "data object which is not of the correct type.  Check the ids you provided.\n";
+                         exit 1;
+                    }
                 }
         
-                if(!$status) {
-                    print "FAILURE - unknown internal server error. Run with --help for usage.\n";
-                    print "This error is often caused if you provided an ID of an expression data or regulatory network\n";
-                    print "data object which is not of the correct type.  Check the ids you provided.\n";
-                    exit 1;
-                }
                 if($verbose) { print $status."\n"; }
                 if($prom_id ne '') {
                     print $prom_id."\n";
