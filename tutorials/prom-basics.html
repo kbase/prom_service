@@ -204,8 +204,25 @@ was the case, we again could have pulled a regulatory network for a related <i>E
 from one variant to the other, and used the method named 'prom-change-regulatory-network-namespace'.  It works the same way
 as the method to change the expression data namespace, except that it creates a new regulatory network object in your workspace.
 </p>
-
-
+<p>As another note, you can inspect your regulatory network at any time by fetching the regulatory network object from your
+workspace using the kbws-get method.  This is a convenient way to inspect any object that is stored in your workspace during
+this tutorial.
+</p>
+<pre>
+    > kbws-get 'Unspecified' 'regulatory_network'
+    kb|g.1870.peg.4264	kb|g.1870.peg.553
+    kb|g.1870.peg.4264	kb|g.1870.peg.521
+    kb|g.1870.peg.4264	kb|g.1870.peg.778
+    kb|g.1870.peg.4264	kb|g.1870.peg.957
+    kb|g.1870.peg.4264	kb|g.1870.peg.1032
+    kb|g.1870.peg.4264	kb|g.1870.peg.263
+    ....
+</pre>
+<p>In this format, transcription factors are listed in the first column and transcriptional targets are listed in the second
+column. No other information (e.g. activator vs. repressor) is stored because it is not required to create a set of PROM
+constraints.  You can use the KBase Regulation services to pull additional information for the regulatory network models
+of your genome of interest.
+</p>
 
 <h2>Create PROM Constraints</h2>
 <p>You can now create a set of PROM constraints from the expression data collection, the regulatory network, and the
@@ -246,7 +263,7 @@ with the FBA, call runFBA:</p>
     Flux balance analysis successful:
     Object ID: iJR904.fba.4
     Type: FBA
-    Workspace: prom_published_fba_2
+    Workspace: prom_ws
     Owner: msneddon
     Instance: 0
     Moddate: 2013-02-12T23:00:54

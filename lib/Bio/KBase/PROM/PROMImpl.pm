@@ -981,6 +981,8 @@ sub get_regulatory_network_by_genome
 					    probTTonGivenTFoff => '',
 					    probTTonGivenTFon => '',
 					    };
+			    if($reg_id eq '') { next; }
+			    if($gene->{geneId} eq '') { next; }
 			    push @$regulatory_network, $regulatory_interaction;
 			    $regulatory_network_flat .= $reg_id."\t".$gene->{geneId}."\n";
 			    $interactionCounter++;
