@@ -224,8 +224,8 @@ constraints.  You can use the KBase Regulation services to pull additional infor
 of your genome of interest.
 </p>
 
-<h2>Create PROM Constraints</h2>
-<p>You can now create a set of PROM constraints from the expression data collection, the regulatory network, and the
+<h2>Create the PROM Constraints Object</h2>
+<p>You can now create a PROM constraints object from the expression data collection, the regulatory network, and the
 genome object.  To do so, call the prom-create-constraints method with flags to indicate the data objects that
 you created earlier.</p>
 <pre>
@@ -255,11 +255,11 @@ and the method was successful, a status message will be displayed.
 
 
 
-<h2>Run an FBA Model with PROM Constraints</h2>
-<p>You can finally run the FBA model with the new PROM constraints.  To associate the PROM constraints object
-with the FBA, call runFBA:</p>
+<h2>Run an FBA Model with a PROM Constraint</h2>
+<p>You can finally run the FBA model with the new PROM constraint.  To associate the PROM constraint object
+with the FBA, call kbfba-runfba:</p>
 <pre>
-    > runFBA iJR904 -p 'kb|g.1870.promconstraint.3'
+    > kbfba-runfba iJR904 -p 'kb|g.1870.promconstraint.3'
     Flux balance analysis successful:
     Object ID: iJR904.fba.4
     Type: FBA
@@ -275,15 +275,15 @@ with the FBA, call runFBA:</p>
     notes: 
     media_uuid: 36A4741E-3A6A-11E2-837B-C916C85230E2
 </pre>
-<p>You were able to successfully run the FBA model with the PROM constraints object.  As with any FBA run, you can view
+<p>You were able to successfully run the FBA model with the PROM constraint object.  As with any FBA run, you can view
 the results by exporting the results object to an HTML file that you can open in your browser using the kbfba-exportfba
 method.  See the FBA Modeling documenation for for details on visualizing and analyzing the results of a model.
 </p>
 <p>If you closely inspected the results, you will discover that the results are identical to running an FBA model without
-PROM constraints.  The reason is that PROM constraints only influence a model if you simulate a transcriptional regulator
+a PROM constraint.  The reason is that the PROM constraint object only influences a model if you simulate a transcriptional regulator
 knockout strain.  Try running the following simulation with a TF knockout:  </p>
 <pre>
-    > runFBA iJR904 -p 'kb|g.1870.promconstraint.3' --geneko "kb|g.20848.cds.4235"
+    > kbfba-runfba iJR904 -p 'kb|g.1870.promconstraint.3' --geneko "kb|g.20848.cds.4235"
     Flux balance analysis successful:
     Object ID: iJR904.fba.5
     Type: FBA
