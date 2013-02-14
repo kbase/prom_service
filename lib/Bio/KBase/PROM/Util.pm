@@ -24,7 +24,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(computeInteractionProbabilities getPromURL get_prom_client get_auth_token);
 
-our $defaultPromURL = "http://localhost:7069";
+our $defaultPromURL = "http://kbase.us/services/prom";
 
 
 

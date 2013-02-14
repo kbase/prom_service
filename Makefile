@@ -55,6 +55,7 @@ compile-typespec:
 		--client Bio::KBase::$(SERVICE_NAME)::Client \
 		--py biokbase/$(SERVICE_NAME)/Client \
 		--js javascript/$(SERVICE_NAME)/Client \
+		--url http://kbase.us/services/prom \
 		$(SERVICE_NAME).spec lib
 
 build-docs: compile-typespec
@@ -102,7 +103,7 @@ deploy-client: deploy-scripts deploy-docs
 	cp $(TOP_DIR)/modules/$(SERVICE)/lib/Bio/KBase/$(SERVICE_NAME)/Util.pm $(TARGET)/lib/Bio/KBase/$(SERVICE_NAME)/.
 	echo "deployed clients of $(SERVICE)."
 
-deploy-scripts: deploy-client deploy-docs
+deploy-scripts:
 	export KB_TOP=$(TARGET); \
 	export KB_RUNTIME=$(DEPLOY_RUNTIME); \
 	export KB_PERL_PATH=$(TARGET)/lib bash ; \
