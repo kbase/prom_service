@@ -13,7 +13,7 @@ PROM
 
 PROM (Probabilistic Regulation of Metabolism) Service
 
-This service enables the creation of FBA model constraint objects that are based on regulatory
+This service enables the creation of FBA model constraints objects that are based on regulatory
 networks and expression data, as described in [1].  Constraints are constructed by either automatically
 aggregating necessary information from the CDS (if available for a given genome), or by adding user
 expression and regulatory data.  PROM provides the capability to simulate transcription factor knockout
@@ -1209,7 +1209,7 @@ sub change_regulatory_network_namespace
 
 =head2 create_prom_constraints
 
-  $status, $prom_constraint_id = $obj->create_prom_constraints($params)
+  $status, $prom_constraints_id = $obj->create_prom_constraints($params)
 
 =over 4
 
@@ -1220,7 +1220,7 @@ sub change_regulatory_network_namespace
 <pre>
 $params is a create_prom_constraints_parameters
 $status is a status
-$prom_constraint_id is a prom_constraint_id
+$prom_constraints_id is a prom_constraints_id
 create_prom_constraints_parameters is a reference to a hash where the following keys are defined:
 	genome_object_id has a value which is a genome_object_id
 	expression_data_collection_id has a value which is an expression_data_collection_id
@@ -1233,7 +1233,7 @@ regulatory_network_id is a string
 workspace_name is a string
 auth_token is a string
 status is a string
-prom_constraint_id is a string
+prom_constraints_id is a string
 
 </pre>
 
@@ -1243,7 +1243,7 @@ prom_constraint_id is a string
 
 $params is a create_prom_constraints_parameters
 $status is a status
-$prom_constraint_id is a prom_constraint_id
+$prom_constraints_id is a prom_constraints_id
 create_prom_constraints_parameters is a reference to a hash where the following keys are defined:
 	genome_object_id has a value which is a genome_object_id
 	expression_data_collection_id has a value which is an expression_data_collection_id
@@ -1256,7 +1256,7 @@ regulatory_network_id is a string
 workspace_name is a string
 auth_token is a string
 status is a string
-prom_constraint_id is a string
+prom_constraints_id is a string
 
 
 =end text
@@ -1290,7 +1290,7 @@ sub create_prom_constraints
     }
 
     my $ctx = $Bio::KBase::PROM::Service::CallContext;
-    my($status, $prom_constraint_id);
+    my($status, $prom_constraints_id);
     #BEGIN create_prom_constraints
 	
 	# input description
@@ -1306,12 +1306,12 @@ sub create_prom_constraints
 	my $genome_id = $params->{genome_object_id};
 	my $workspace_name = $params->{workspace_name};
 	my $token = $params->{token};
-	$prom_constraint_id ="";
+	$prom_constraints_id ="";
 	
 	my $t_start = Benchmark->new;
 	
 	#set up return variables and fetch the workspace client handle
-	$status = ""; $prom_constraint_id = "";
+	$status = ""; $prom_constraints_id = "";
 	my $ws  = $self->{'workspace'};
 	
 	# check if the gene expression data collection from a workspace exists
@@ -1443,15 +1443,15 @@ sub create_prom_constraints
 		
 		# use the ID server to generate a name for the prom constraints object
 		my $idserver = $self->{idserver};
-		my $prefix = $genome_id.".promconstraint.";
+		my $prefix = $genome_id.".promconstraints.";
 		my $id_number = $idserver->allocate_id_range($prefix,1);
 		if($id_number) {
 		    if($id_number ne '') {
-			$prom_constraint_id = $prefix.$id_number;
-		    } else { $prom_constraint_id = $prefix."x"; }
-		} else { $prom_constraint_id = $prefix."x"; }
+			$prom_constraints_id = $prefix.$id_number;
+		    } else { $prom_constraints_id = $prefix."x"; }
+		} else { $prom_constraints_id = $prefix."x"; }
 		my $prom_constraints = {
-			id => $prom_constraint_id,
+			id => $prom_constraints_id,
 			annotation_uuid => $annot_uuid,
 			transcriptionFactorMaps => $tfMap,
 			expression_data_collection_id => $e_id
@@ -1462,7 +1462,7 @@ sub create_prom_constraints
 		my $encoded_json_PromModelConstraints = encode_json($prom_constraints);
 		print $encoded_json_PromModelConstraints."\n";
 		my $workspace_save_obj_params = {
-		    id => $prom_constraint_id,
+		    id => $prom_constraints_id,
 		    type => "PromConstraints",
 		    data => $encoded_json_PromModelConstraints,
 		    workspace => $workspace_name,
@@ -1473,7 +1473,7 @@ sub create_prom_constraints
 		    retrieveFromURL => 0,
 		};
 		my $object_metadata = $ws->save_object($workspace_save_obj_params);
-		$status = $status."  -> saving the new PromModelConstraints object ID:$prom_constraint_id\n";
+		$status = $status."  -> saving the new PromModelConstraints object ID:$prom_constraints_id\n";
 		$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
 		$status = "SUCCESS.\n".$status;
 		
@@ -1486,13 +1486,13 @@ sub create_prom_constraints
     #END create_prom_constraints
     my @_bad_returns;
     (!ref($status)) or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
-    (!ref($prom_constraint_id)) or push(@_bad_returns, "Invalid type for return variable \"prom_constraint_id\" (value was \"$prom_constraint_id\")");
+    (!ref($prom_constraints_id)) or push(@_bad_returns, "Invalid type for return variable \"prom_constraints_id\" (value was \"$prom_constraints_id\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to create_prom_constraints:\n" . join("", map { "\t$_\n" } @_bad_returns);
 	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
 							       method_name => 'create_prom_constraints');
     }
-    return($status, $prom_constraint_id);
+    return($status, $prom_constraints_id);
 }
 
 
@@ -1817,7 +1817,7 @@ a string
 
 
 
-=head2 prom_constraint_id
+=head2 prom_constraints_id
 
 =over 4
 
@@ -1825,7 +1825,7 @@ a string
 
 =item Description
 
-A workspace ID for the prom constraint object in a user's workpace
+A workspace ID for the prom constraints object in a user's workpace
 
 
 =item Definition
@@ -1856,7 +1856,7 @@ a string
 
 =item Description
 
-A workspace ID for a genome object in a user's workspace, used to link a PromConstraintsObject to a genome
+A workspace ID for a genome object in a user's workspace, used to link a prom_constraint Object to a genome
 
 
 =item Definition
@@ -2178,7 +2178,7 @@ a reference to a list where each element is a regulatory_interaction
 
 =item Description
 
-Object required by the prom_constraint object which defines the computed probabilities for a target gene.  The
+Object required by the prom_constraints object which defines the computed probabilities for a target gene.  The
 TF regulating this target can be deduced based on the tfMap object.
 
     string target_uuid        - id of the target gene in the annotation object namespace
@@ -2230,7 +2230,7 @@ tfOffProbability has a value which is a float
 
 =item Description
 
-Object required by the prom_constraint object, this maps a transcription factor by its uuid (in some
+Object required by the prom_constraints object, this maps a transcription factor by its uuid (in some
 annotation namespace) to a group of regulatory target genes.
 
     string transcriptionFactor_uuid                       - id of the TF in the annotation object namespace
@@ -2246,7 +2246,7 @@ annotation namespace) to a group of regulatory target genes.
 <pre>
 a reference to a hash where the following keys are defined:
 transcriptionFactor_uuid has a value which is a string
-transcriptionFactorMapTarget has a value which is a reference to a list where each element is a regulatory_target
+transcriptionFactorMapTargets has a value which is a reference to a list where each element is a regulatory_target
 
 </pre>
 
@@ -2256,7 +2256,7 @@ transcriptionFactorMapTarget has a value which is a reference to a list where ea
 
 a reference to a hash where the following keys are defined:
 transcriptionFactor_uuid has a value which is a string
-transcriptionFactorMapTarget has a value which is a reference to a list where each element is a regulatory_target
+transcriptionFactorMapTargets has a value which is a reference to a list where each element is a regulatory_target
 
 
 =end text
@@ -2273,7 +2273,7 @@ transcriptionFactorMapTarget has a value which is a reference to a list where ea
 
 =item Description
 
-the ID of the genome annotation object kept for reference in the prom_constraint object
+the ID of the genome annotation object kept for reference in the prom_constraints object
 
 
 =item Definition
@@ -2310,7 +2310,7 @@ objects) and interaction probabilities as defined in each regulatory_target obje
 object is required in order to properly link to an FBA model object.  A reference to the expression_data_collection
 used to compute the interaction probabilities is provided for future reference.
 
-    prom_constraint_id id                                         - the id of this prom_constraint object in a
+    prom_constraints_id id                                         - the id of this prom_constraints object in a
                                                                     workspace
     annotation_uuid annotation_uuid                               - the id of the annotation object in the workspace
                                                                     which specfies how TFs and targets are named
@@ -2328,7 +2328,7 @@ used to compute the interaction probabilities is provided for future reference.
 
 <pre>
 a reference to a hash where the following keys are defined:
-id has a value which is a prom_constraint_id
+id has a value which is a prom_constraints_id
 annotation_uuid has a value which is an annotation_uuid
 transcriptionFactorMaps has a value which is a reference to a list where each element is a tfMap
 expression_data_collection_id has a value which is an expression_data_collection_id
@@ -2340,7 +2340,7 @@ expression_data_collection_id has a value which is an expression_data_collection
 =begin text
 
 a reference to a hash where the following keys are defined:
-id has a value which is a prom_constraint_id
+id has a value which is a prom_constraints_id
 annotation_uuid has a value which is an annotation_uuid
 transcriptionFactorMaps has a value which is a reference to a list where each element is a tfMap
 expression_data_collection_id has a value which is an expression_data_collection_id

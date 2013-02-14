@@ -1,7 +1,7 @@
 /*
 PROM (Probabilistic Regulation of Metabolism) Service
 
-This service enables the creation of FBA model constraint objects that are based on regulatory
+This service enables the creation of FBA model constraints objects that are based on regulatory
 networks and expression data, as described in [1].  Constraints are constructed by either automatically
 aggregating necessary information from the CDS (if available for a given genome), or by adding user
 expression and regulatory data.  PROM provides the capability to simulate transcription factor knockout
@@ -57,10 +57,10 @@ module PROM
     /* Status message used by this service to provide information on the final status of a step  */
     typedef string status;
     
-    /* A workspace ID for the prom constraint object in a user's workpace */
-    typedef string prom_constraint_id;
+    /* A workspace ID for the prom constraints object in a user's workpace */
+    typedef string prom_constraints_id;
     
-    /* A workspace ID for a genome object in a user's workspace, used to link a PromConstraintsObject to a genome */
+    /* A workspace ID for a genome object in a user's workspace, used to link a prom_constraint Object to a genome */
     typedef string genome_object_id;
     
     /* Specifies the source of a data object, e.g. KBase or MicrobesOnline */
@@ -145,7 +145,7 @@ module PROM
 
     
     /*
-    Object required by the prom_constraint object which defines the computed probabilities for a target gene.  The
+    Object required by the prom_constraints object which defines the computed probabilities for a target gene.  The
     TF regulating this target can be deduced based on the tfMap object.
     
         string target_uuid        - id of the target gene in the annotation object namespace
@@ -167,7 +167,7 @@ module PROM
     } regulatory_target;
     
     /*
-    Object required by the prom_constraint object, this maps a transcription factor by its uuid (in some
+    Object required by the prom_constraints object, this maps a transcription factor by its uuid (in some
     annotation namespace) to a group of regulatory target genes.
     
         string transcriptionFactor_uuid                       - id of the TF in the annotation object namespace
@@ -177,11 +177,11 @@ module PROM
     */
     typedef structure {
         string transcriptionFactor_uuid;
-        list <regulatory_target> transcriptionFactorMapTarget;
+        list <regulatory_target> transcriptionFactorMapTargets;
     } tfMap;
     
     
-    /* the ID of the genome annotation object kept for reference in the prom_constraint object */
+    /* the ID of the genome annotation object kept for reference in the prom_constraints object */
     typedef string annotation_uuid;
     
     /*
@@ -191,7 +191,7 @@ module PROM
     object is required in order to properly link to an FBA model object.  A reference to the expression_data_collection
     used to compute the interaction probabilities is provided for future reference.
     
-        prom_constraint_id id                                         - the id of this prom_constraint object in a
+        prom_constraints_id id                                         - the id of this prom_constraints object in a
                                                                         workspace
         annotation_uuid annotation_uuid                               - the id of the annotation object in the workspace
                                                                         which specfies how TFs and targets are named
@@ -203,7 +203,7 @@ module PROM
                                                                         regulatory interaction probabilities
     */
     typedef structure {
-        prom_constraint_id id;
+        prom_constraints_id id;
         annotation_uuid annotation_uuid;
         list <tfMap> transcriptionFactorMaps;
         expression_data_collection_id expression_data_collection_id;
@@ -324,7 +324,7 @@ module PROM
     ID of the new Prom constraints object is also returned. The Prom constraints can then be used in conjunction
     with an FBA model using FBA Model Services.
     */
-    funcdef create_prom_constraints(create_prom_constraints_parameters params) returns (status status, prom_constraint_id prom_constraint_id);
+    funcdef create_prom_constraints(create_prom_constraints_parameters params) returns (status status, prom_constraints_id prom_constraints_id);
     
     
    

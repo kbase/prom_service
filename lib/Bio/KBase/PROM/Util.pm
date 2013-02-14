@@ -7,7 +7,7 @@ Bio::KBase::PROM::Util
 
 PROM (Probabilistic Regulation of Metabolism) Service
 
-This module encapsulates a set of utility methods for setting up a Prom Model Constraints object in
+This module encapsulates a set of utility methods for setting up a Prom Constraints object in
 a KBase user workspace, including a method to calculate interaction probabilities from gene expression
 and 
 
@@ -122,7 +122,7 @@ sub computeInteractionProbabilities {
     # repackage into the object that runFBA is expecting, which is not a hash, but a list of hashes
     my $tfMaps = [];
     foreach my $TF_UUID (keys %$tfTempMap) {
-        push @{$tfMaps}, {"transcriptionFactor_uuid"=>$TF_UUID,"transcriptionFactorMapTarget"=>$tfTempMap->{$TF_UUID}};
+        push @{$tfMaps}, {"transcriptionFactor_uuid"=>$TF_UUID,"transcriptionFactorMapTargets"=>$tfTempMap->{$TF_UUID}};
     }
     
     return ($status,$tfMaps);
