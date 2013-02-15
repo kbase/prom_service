@@ -4,7 +4,7 @@
 This tutorial covers basic usage of the PROM (Probabilistic Regulation of Metabolism) service, which
 enables the creation of FBA models with regulatory network constraints inferred from gene expression data [1].
 After the tuturial, you will be able to retrieve gene expression and regulatory network data from KBase,
-solve the most common gene ID problems so that all the data can be placed in the same namespace, build a set
+solve the most common gene ID problems so that all data can be placed in the same namespace, build a set
 of probabilistic constraints, and finally associate the PROM constraints with an FBA model in order to simulate
 transcription factor knockout phenotypes.
 
@@ -259,7 +259,7 @@ and the method was successful, a status message will be displayed.
 <p>You can finally run the FBA model with the new PROM constraint.  To associate the PROM constraint object
 with the FBA, call kbfba-runfba:</p>
 <pre>
-    > kbfba-runfba iJR904 -p 'kb|g.1870.promconstraint.3'
+    > kbfba-runfba iJR904 -p 'kb|g.1870.promconstraints.3'
     Flux balance analysis successful:
     Object ID: iJR904.fba.4
     Type: FBA
@@ -283,7 +283,7 @@ method.  See the FBA Modeling documenation for for details on visualizing and an
 a PROM constraint.  The reason is that the PROM constraint object only influences a model if you simulate a transcriptional regulator
 knockout strain.  Try running the following simulation with a TF knockout:  </p>
 <pre>
-    > kbfba-runfba iJR904 -p 'kb|g.1870.promconstraint.3' --geneko "kb|g.20848.cds.4235"
+    > kbfba-runfba iJR904 -p 'kb|g.1870.promconstraints.3' --geneko "kb|g.20848.cds.4235"
     Flux balance analysis successful:
     Object ID: iJR904.fba.5
     Type: FBA
