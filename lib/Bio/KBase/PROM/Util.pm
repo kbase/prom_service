@@ -83,6 +83,9 @@ sub computeInteractionProbabilities {
         my $TF_on_TARGET_on_count = 0;
         
         foreach my $experiment (@$expression_data) {
+            if(!exists $experiment->{geneCalls}->{$TF}) { next; }
+            if(!exists $experiment->{geneCalls}->{$TARGET}) { next; }
+            
             if( 1==$isOn{$experiment->{geneCalls}->{$TF}}  ) {
                 $TF_on_count++;
                 if( 1==$isOn{$experiment->{geneCalls}->{$TARGET}}  ) {
