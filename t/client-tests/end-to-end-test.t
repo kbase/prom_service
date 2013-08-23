@@ -26,7 +26,7 @@ use_ok("Bio::KBase::AuthToken");
 # AUTH INFORMATION FOR TESTING
 my $user_id='kbasepromuser1';
 my $password='open4me!';
-my $workspace_name="active_prom_test_workspace";
+my $workspace_name="active_prom_test_workspace2";
 my $token = Bio::KBase::AuthToken->new(user_id => $user_id, password => $password);
 ok(defined $token,"auth could get token");
 
@@ -63,7 +63,7 @@ foreach my $ws_name (@$ws_list) {
 if( $found != 1 ) {
     my $create_workspace_params = {
         workspace => $workspace_name,
-        default_permission => 'w',
+        default_permission => 'n',
         auth => $token->token()
     };
     my $workspace_meta = $ws->create_workspace($create_workspace_params);
@@ -152,10 +152,10 @@ ok($prom_id ne "","prom ID not empty, which means it was probably created succes
 
 
 # 8) RUN AN FBA MODEL WITH THE PROM CONSTRAINTS
-# not necessary here - where can we do integration testing ?!?!?
+# not necessary here - this is not a test of the PROM Service - where can we do integration testing ?!?!?
 
 
-# 9) DELETE THE WORKSPACE
+# 9) DELETE THE WORKSPACE (don't clutter up the db)
 my $delete_workspace_params = {
     workspace => $workspace_name,
     auth => $token->token()

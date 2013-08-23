@@ -1,2 +1,6 @@
 #group-name	prom_service	PROM commands
-#command-set	scripts/(.*).pl	prom_service
+prom-load-regulatory-newtwork	prom_service
+prom-load-expression-data	prom_service
+prom-change-expression-data-namespace	prom_service
+prom-change-regulatory-network-namespace	prom_service
+prom-create-constraints	prom_service
