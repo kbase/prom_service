@@ -57,6 +57,8 @@ compile-typespec:
 		--js javascript/$(SERVICE_NAME)/Client \
 		--url http://kbase.us/services/prom \
 		$(SERVICE_NAME).spec lib
+	rm -f lib/PROMServer.py
+	rm -f lib/PROMImpl.py
 
 build-docs: compile-typespec
 	mkdir -p docs
