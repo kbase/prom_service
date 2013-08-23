@@ -11,11 +11,11 @@ used in conjunction with an FBA model with the KBase FBA Modeling Service.
 regulatory networks in Escherichia coli and Mycobacterium tuberculosis. PNAS (2010) 107:17845-50.
 
 
-NOTE: 8/
+NOTE: 8/23/2013
 ------------------------------------------
 -Critical dependencies (workspace service, FBA modeling) are currently being refactored,
-so the PROM service will temporarily not be updated/released until these interfaces are
-more stable.  We expect an updated Prom service to be released by the end of 2013.
+so the PROM service will temporarily be unstable until these interfaces have been updated.
+We expect an updated Prom service that is more stable to be released at the end of 2013.
 
 
 
