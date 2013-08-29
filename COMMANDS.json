@@ -1,0 +1,18 @@
+{
+    "iris": {
+        "group-names":  [
+                {"group-name": "prom_service", "description": "PROM commands"}
+            ]
+    },
+    "cli": {
+        "commands": [
+                {"file-spec": "scripts/prom-load-regulatory-network.pl",            "lang":"perl",   "iris-group-name": "prom_service"},
+                {"file-spec": "scripts/prom-load-expression-data.pl",                "lang":"perl",   "iris-group-name": "prom_service"},
+                {"file-spec": "scripts/prom-change-expression-data-namespace.pl",    "lang":"perl",   "iris-group-name": "prom_service"},
+                {"file-spec": "scripts/prom-change-regulatory-network-namespace.pl", "lang":"perl",   "iris-group-name": "prom_service"},
+                {"file-spec": "scripts/prom-create-constraints.pl",                  "lang":"perl",   "iris-group-name": "prom_service"},
+                {"file-spec": "scripts/prom-url.pl",                                 "lang":"perl" }
+            ],
+        "deprecated-commands": []
+    }
+}

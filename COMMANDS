@@ -1,6 +1,6 @@
 #group-name	prom_service	PROM commands
-prom-load-regulatory-newtwork	prom_service
+prom-change-regulatory-network-namespace	prom_service
 prom-load-expression-data	prom_service
 prom-change-expression-data-namespace	prom_service
-prom-change-regulatory-network-namespace	prom_service
+prom-load-regulatory-network	prom_service
 prom-create-constraints	prom_service
