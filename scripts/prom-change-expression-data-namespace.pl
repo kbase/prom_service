@@ -24,7 +24,7 @@ DESCRIPTION
       collection will change.  In order to undo the change, the data object
       would need to be reverted.  Also note that if a gene name is not found in
       the mapping, it is ignored and the original name is left in place (thus,
-      expression data matricies will retain the same row/col size).  This also
+      expression data matrices will retain the same row/col size).  This also
       means that the updated expression data may then have genes in two different
       namespaces if not all genes could be mapped.  Importantly, a side effect is
       that if nothing could be updated, the method will still look like it was
@@ -43,7 +43,7 @@ DESCRIPTION
                         information.  The format of the file should be a two
                         column, tab-delimited ASCII text file without a header
                         line where the original gene names are listed in the left
-                        column and the cooresponding gene name replacements are
+                        column and the corresponding gene name replacements are
                         listed in the right column.
         
       -w [WORKSPACE_ID], --workspace [WORKSPACE_ID]
@@ -58,7 +58,7 @@ DESCRIPTION
                         for debugging
                         
       -h, --help
-                        diplay this help message, ignore all arguments
+                        display this help message, ignore all arguments
                         
                         
 

@@ -53,7 +53,7 @@ DESCRIPTION
                         debugging
 
       -h, --help
-                        diplay this help message, ignore all arguments
+                        display this help message, ignore all arguments
 
 EXAMPLES
       Create a PROM model constraints object:

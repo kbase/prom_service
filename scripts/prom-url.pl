@@ -21,7 +21,7 @@ DESCRIPTION
       URL.  If the specified URL is named default, then the URL is reset to
       the default production URL
       
-      -h, --help         diplay this help message, ignore all arguments
+      -h, --help         display this help message, ignore all arguments
 
 EXAMPLES
       Display the current URL:

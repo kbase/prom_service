@@ -34,7 +34,7 @@ DESCRIPTION
                         information.  The format of the file should be a two
                         column, tab-delimited ASCII text file without a header
                         line where the original gene names are listed in the left
-                        column and the cooresponding gene name replacements are
+                        column and the corresponding gene name replacements are
                         listed in the right column.
         
       -w [WORKSPACE_ID], --workspace [WORKSPACE_ID]
@@ -49,7 +49,7 @@ DESCRIPTION
                         debugging
                         
       -h, --help
-                        diplay this help message, ignore all arguments
+                        display this help message, ignore all arguments
 
 EXAMPLES
       Change the regulatory namespace of a network given the map file 'map.txt'
