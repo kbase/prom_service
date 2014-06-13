@@ -42,7 +42,7 @@ created 11/27/2012 - msneddon
 
 use Bio::KBase::ERDB_Service::Client;
 use Bio::KBase::Regulation::Client;
-use Bio::KBase::workspaceService::Client;
+use Bio::KBase::workspace::Client;
 use Bio::KBase::IDServer::Client;
 use Bio::KBase::PROM::Util qw(computeInteractionProbabilities);
 #use ModelSEED::MS::PROMModel;
@@ -105,7 +105,7 @@ sub new
 	
     if (defined $params{"workspace"}) {
 	my $workspace_url = $params{"workspace"};
-	$self->{'workspace'} = Bio::KBase::workspaceService::Client->new($workspace_url);
+	$self->{'workspace'} = Bio::KBase::workspace::Client->new($workspace_url);
 	print STDERR "Connecting Workspace Service client to server : $workspace_url\n";
     }
     else {
@@ -147,12 +147,12 @@ sub new
 =begin html
 
 <pre>
-$genome_id is a PROM.genome_id
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
-$expression_data_collection_id is a PROM.expression_data_collection_id
-genome_id is a PROM.kbase_id
+$genome_id is a genome_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
+genome_id is a kbase_id
 kbase_id is a string
 workspace_name is a string
 auth_token is a string
@@ -165,12 +165,12 @@ expression_data_collection_id is a string
 
 =begin text
 
-$genome_id is a PROM.genome_id
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
-$expression_data_collection_id is a PROM.expression_data_collection_id
-genome_id is a PROM.kbase_id
+$genome_id is a genome_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
+genome_id is a kbase_id
 kbase_id is a string
 workspace_name is a string
 auth_token is a string
@@ -233,7 +233,11 @@ sub get_expression_data_by_genome
 	my $ws = $self->{'workspace'};
 	
 	# grab the erdb service
-	my $erdb = $self->{'erdb'};
+    #my $erdb = $self->{'erdb'};
+    use Bio::KBase::CDMI::CDMIClient;
+    use Bio::KBase::Utilities::ScriptThing;
+    my $csO = Bio::KBase::CDMI::CDMIClient->new_for_script();
+
 
 	# GRAB EXPRESSION DATA FROM THE CDM (currently has on/off calls! but this will likely change...)
 	$status .= "  -> searching the KBase Central Data Store for expression data for genome: ".$genome_id."\n";
@@ -242,7 +246,14 @@ sub get_expression_data_by_genome
 	my $parameters = [$genome_id];
 	my $fields = 'HasResultsIn(to-link)';
 	my $count = 0; #as per ERDB doc, setting to zero returns all results
-	my @experiment_list = @{$erdb->GetAll($objectNames, $filterClause, $parameters, $fields, $count)};
+#	my @experiment_list = @{$erdb->GetAll($objectNames, $filterClause, $parameters, $fields, $count)};
+
+    print "collecting expression data for $genome_id\n";
+
+    my $probeSetsH = $csO->get_relationship_HadResultsProducedBy([$genome_id],[],[],["id"]);
+    my $probeSet = $probeSetsH->[0]->[2]->{'id'};
+    my $experimentsH = $csO->get_relationship_HasResultsIn([$probeSet],[],[],["id"]);
+    my @experiment_list = map { $_->[2]->{'id'} } @$experimentsH;
 	
 	# check if we found anything for this genome
 	my @expression_data_uuid_list = ();
@@ -258,17 +269,18 @@ sub get_expression_data_by_genome
 	    foreach my $exp (@experiment_list) {
 		$exp_counter ++;
 		#if ($exp_counter>2) { last; } #limit for debugging purposes...
-		print "---Experiment $exp_counter:".${$exp}[0]."\n";
+		print "---Experiment $exp_counter:".$exp."\n";
 		$filterClause = "IndicatesSignalFor(from-link)=?";
 		$fields = 'IndicatesSignalFor(from-link) IndicatesSignalFor(to-link) IndicatesSignalFor(level)';
-		my @expression_data = @{$erdb->GetAll($objectNames, $filterClause, [${$exp}[0]], $fields, $count)};
+#		my @expression_data = @{$erdb->GetAll($objectNames, $filterClause, [$exp], $fields, $count)};
+		my @expression_data = @{$csO->get_relationship_IndicatesSignalFor([$exp],[],["level"],["id"])};
 		if(scalar @expression_data >0) {
-		    $status = $status."  -> found experiment '${$exp}[0]' with ".scalar(@expression_data)." gene on/off calls.\n";
+		    $status = $status."  -> found experiment '$exp' with ".scalar(@expression_data)." gene on/off calls.\n";
 		    
 		    # drop top level list and save as a data structure
 		    my %on_off_calls;
 		    foreach my $data (@expression_data) {
-			$on_off_calls{${$data}[1]} = ${$data}[2]; 
+			$on_off_calls{$data->[2]->{'id'}} = $data->[1]->{"level"}+0;
 		    }
 		
 		    # create a data structure to store the experimental data
@@ -279,30 +291,27 @@ sub get_expression_data_by_genome
 			id => $data_uuid,
 			on_off_call => \%on_off_calls,
 			expression_data_source => 'KBase',
-			expression_data_source_id => ${$exp}[0],
+			expression_data_source_id => $exp,
 		    };
-		    
-		    # convert it to JSON
-		    my $encoded_json_exp_data = encode_json $exp_data;
 		    
 		    # save this experiment to the workspace
 		    my $workspace_save_obj_params = {
 			id => $data_uuid,
-			type => "Unspecified",
-			data => $encoded_json_exp_data,
+			type => "KBaseFBA.BooleanGeneExpressionData",
+			data => $exp_data,
 			workspace => $workspace_name,
 			command => "Bio::KBase::PROM::retrieve_expression_data",
 			auth => $token,
-			json => 1,
+			json => 0,
 			compressed => 0,
 			retrieveFromURL => 0,
 		    };
 		    my $object_metadata = $ws->save_object($workspace_save_obj_params);
-		    $status = $status."  -> saving data for experiment '${$exp}[0]' to your workspace with ID:$data_uuid\n";
+		    $status = $status."  -> saving data for experiment '$exp' to your workspace with ID:$data_uuid\n";
 		    #print Dumper($object_metadata)."\n";
 		    #print "DATA:\n".$encoded_json_data."\n";
 		} else {
-		    $status .= "  -> warning - no gene expression data found for experiment '${$exp}[0]'.\n";
+		    $status .= "  -> warning - no gene expression data found for experiment '$exp'.\n";
 		}
 	    }
 	    #print Dumper(@expression_data_uuid_list)."\n"; #print the list of expression data found
@@ -314,19 +323,18 @@ sub get_expression_data_by_genome
 	    # create the collection and encode it as JSON
 	    my $exp_data_collection = {
 		id => $expression_data_collection_id,
-		expression_data => \@expression_data_uuid_list,
+		expression_data_ids => \@expression_data_uuid_list,
 	    };
-	    my $encoded_json_data_collection = encode_json $exp_data_collection;
 	    
 	    # save the collection to the workspace
 	    my $workspace_save_obj_params = {
 		id => $expression_data_collection_id,
-		type => "Unspecified",
-		data => $encoded_json_data_collection,
+		type => "KBaseFBA.BooleanGeneExpressionDataCollection",
+		data => $exp_data_collection,
 		workspace => $workspace_name,
 		command => "Bio::KBase::PROM::retrieve_expression_data",
 		auth => $token,
-		json => 1,
+		json => 0,
 		compressed => 0,
 		retrieveFromURL => 0,
 	    };
@@ -372,10 +380,10 @@ sub get_expression_data_by_genome
 =begin html
 
 <pre>
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
-$expression_data_collection_id is a PROM.expression_data_collection_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
 workspace_name is a string
 auth_token is a string
 status is a string
@@ -387,10 +395,10 @@ expression_data_collection_id is a string
 
 =begin text
 
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
-$expression_data_collection_id is a PROM.expression_data_collection_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$expression_data_collection_id is an expression_data_collection_id
 workspace_name is a string
 auth_token is a string
 status is a string
@@ -486,18 +494,18 @@ sub create_expression_data_collection
 =begin html
 
 <pre>
-$expression_data is a reference to a list where each element is a PROM.BooleanGeneExpressionData
-$expression_data_collecion_id is a PROM.expression_data_collection_id
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
+$expression_data is a reference to a list where each element is a BooleanGeneExpressionData
+$expression_data_collecion_id is an expression_data_collection_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
 BooleanGeneExpressionData is a reference to a hash where the following keys are defined:
-	id has a value which is a PROM.boolean_gene_expression_data_id
-	on_off_call has a value which is a reference to a hash where the key is a PROM.feature_id and the value is a PROM.on_off_state
-	expression_data_source has a value which is a PROM.source
-	expression_data_source_id has a value which is a PROM.source
+	id has a value which is a boolean_gene_expression_data_id
+	on_off_call has a value which is a reference to a hash where the key is a feature_id and the value is an on_off_state
+	expression_data_source has a value which is a source
+	expression_data_source_id has a value which is a source
 boolean_gene_expression_data_id is a string
-feature_id is a PROM.kbase_id
+feature_id is a kbase_id
 kbase_id is a string
 on_off_state is an int
 source is a string
@@ -512,18 +520,18 @@ status is a string
 
 =begin text
 
-$expression_data is a reference to a list where each element is a PROM.BooleanGeneExpressionData
-$expression_data_collecion_id is a PROM.expression_data_collection_id
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
+$expression_data is a reference to a list where each element is a BooleanGeneExpressionData
+$expression_data_collecion_id is an expression_data_collection_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
 BooleanGeneExpressionData is a reference to a hash where the following keys are defined:
-	id has a value which is a PROM.boolean_gene_expression_data_id
-	on_off_call has a value which is a reference to a hash where the key is a PROM.feature_id and the value is a PROM.on_off_state
-	expression_data_source has a value which is a PROM.source
-	expression_data_source_id has a value which is a PROM.source
+	id has a value which is a boolean_gene_expression_data_id
+	on_off_call has a value which is a reference to a hash where the key is a feature_id and the value is an on_off_state
+	expression_data_source has a value which is a source
+	expression_data_source_id has a value which is a source
 boolean_gene_expression_data_id is a string
-feature_id is a PROM.kbase_id
+feature_id is a kbase_id
 kbase_id is a string
 on_off_state is an int
 source is a string
@@ -689,11 +697,11 @@ sub add_expression_data_to_collection
 =begin html
 
 <pre>
-$expression_data_collection_id is a PROM.expression_data_collection_id
+$expression_data_collection_id is an expression_data_collection_id
 $new_feature_names is a reference to a hash where the key is a string and the value is a string
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
 expression_data_collection_id is a string
 workspace_name is a string
 auth_token is a string
@@ -705,11 +713,11 @@ status is a string
 
 =begin text
 
-$expression_data_collection_id is a PROM.expression_data_collection_id
+$expression_data_collection_id is an expression_data_collection_id
 $new_feature_names is a reference to a hash where the key is a string and the value is a string
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
 expression_data_collection_id is a string
 workspace_name is a string
 auth_token is a string
@@ -853,12 +861,12 @@ sub change_expression_data_namespace
 =begin html
 
 <pre>
-$genome_id is a PROM.genome_id
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
-$regulatory_network_id is a PROM.regulatory_network_id
-genome_id is a PROM.kbase_id
+$genome_id is a genome_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$regulatory_network_id is a regulatory_network_id
+genome_id is a kbase_id
 kbase_id is a string
 workspace_name is a string
 auth_token is a string
@@ -871,12 +879,12 @@ regulatory_network_id is a string
 
 =begin text
 
-$genome_id is a PROM.genome_id
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
-$regulatory_network_id is a PROM.regulatory_network_id
-genome_id is a PROM.kbase_id
+$genome_id is a genome_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$regulatory_network_id is a regulatory_network_id
+genome_id is a kbase_id
 kbase_id is a string
 workspace_name is a string
 auth_token is a string
@@ -1004,12 +1012,12 @@ sub get_regulatory_network_by_genome
 		my $encoded_json_reg_network = encode_json $regulatory_network;
 		#print "DATA:\n".$encoded_json_reg_network."\n";
 		#print "DATA(FLAT):\n".$regulatory_network_flat."\n";
-		
+
 		# save the collection to the workspace
 		my $workspace_save_obj_params = {
 		    id => $regulatory_network_id,
-		    type => "Unspecified",
-		    data => $regulatory_network_flat, #$encoded_json_reg_network,
+		    type => "KBaseFBA.regulatory_network-2.0",
+		    data => {"regulatory_network" => $regulatory_network}, #_flat, #$encoded_json_reg_network,
 		    workspace => $workspace_name,
 		    command => "Bio::KBase::PROM::get_regulatory_network_by_genome",
 		    auth => $token,
@@ -1058,12 +1066,12 @@ sub get_regulatory_network_by_genome
 =begin html
 
 <pre>
-$regulatory_network_id is a PROM.regulatory_network_id
+$regulatory_network_id is a regulatory_network_id
 $new_feature_names is a reference to a hash where the key is a string and the value is a string
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
-$new_regulatory_network_id is a PROM.regulatory_network_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$new_regulatory_network_id is a regulatory_network_id
 regulatory_network_id is a string
 workspace_name is a string
 auth_token is a string
@@ -1075,12 +1083,12 @@ status is a string
 
 =begin text
 
-$regulatory_network_id is a PROM.regulatory_network_id
+$regulatory_network_id is a regulatory_network_id
 $new_feature_names is a reference to a hash where the key is a string and the value is a string
-$workspace_name is a PROM.workspace_name
-$token is a PROM.auth_token
-$status is a PROM.status
-$new_regulatory_network_id is a PROM.regulatory_network_id
+$workspace_name is a workspace_name
+$token is an auth_token
+$status is a status
+$new_regulatory_network_id is a regulatory_network_id
 regulatory_network_id is a string
 workspace_name is a string
 auth_token is a string
@@ -1134,38 +1142,33 @@ sub change_regulatory_network_namespace
      # check if the regulatory network data exists
     my $get_object_params = {
 	id => $regulatory_network_id,
-	type => "Unspecified",
+	type => "KBaseFBA.regulatory_network-2.0",
 	workspace => $workspace_name,
 	auth => $token,
     };
-    my $r_exists = $ws->has_object($get_object_params);
-    if(!$r_exists) {
+    my $object = $ws->get_object($get_object_params);
+    if(! defined $object) {
 	$status = "FAILURE - no regulatory network data with ID $regulatory_network_id found!\n".$status;
     } else {
 	# if it does exist grab the object
 	my $interaction_counter = 0; my $converted_interaction_counter=0;
 	$get_object_params->{id}=$regulatory_network_id;
-	my $updated_version = "";
-	my $object = $ws->get_object($get_object_params);
-	my $regnet = $object->{data};
-	my @lines = split /\n/, $regnet;
+	my $updated_version = [];
+	my $regnet = $object->{"data"}->{"regulatory_network"};
+	my @lines = @$regnet;
 	foreach my $line (@lines) {
-	    chomp $line;
-	    my @ids = split /\t/, $line;
 	    $interaction_counter++;
-	    if( scalar(@ids) != 2 ) {
-		$status = "ERROR - malformed line in regulatory network data: $line\n".$status;
-		last;
-	    }
-	    if(exists $new_feature_names->{$ids[0]}) {
-		if(exists $new_feature_names->{$ids[1]}) {
-		    $updated_version .= $new_feature_names->{$ids[0]}."\t".$new_feature_names->{$ids[1]}."\n";
+	    my $target = $line->{'target'};
+	    my $tf = $line->{'TF'};
+	    if(exists $new_feature_names->{$target}) {
+		if(exists $new_feature_names->{$tf}) {
+		    push @$updated_version, { 'target' => $new_feature_names->{$target}, 'TF' => $new_feature_names->{$tf} };
 		    $converted_interaction_counter ++;
 		} else {
-		    $status .= "WARNING - cannot find match for target '".$ids[1]."', skipping this interaction\n";
+		    $status .= "WARNING - cannot find match for target '".$tf."', skipping this interaction\n";
 		}
 	    } else {
-		$status .= "WARNING - cannot find match for TF '".$ids[0]."', skipping this interaction\n";
+		$status .= "WARNING - cannot find match for TF '".$target."', skipping this interaction\n";
 	    }
 	}
 	
@@ -1177,8 +1180,8 @@ sub change_regulatory_network_namespace
 	    # save the collection to the workspace
 	    my $workspace_save_obj_params = {
 		id => $new_regulatory_network_id,
-		type => "Unspecified",
-		data => $updated_version,
+		type => "KBaseFBA.regulatory_network-2.0",
+		data => {'regulatory_network' => $updated_version},
 		workspace => $workspace_name,
 		command => "Bio::KBase::PROM::get_regulatory_network_by_genome",
 		auth => $token,
@@ -1221,15 +1224,15 @@ sub change_regulatory_network_namespace
 =begin html
 
 <pre>
-$params is a PROM.CreatePromConstraintsParameters
-$status is a PROM.status
-$prom_constraints_id is a PROM.prom_constraints_id
+$params is a CreatePromConstraintsParameters
+$status is a status
+$prom_constraints_id is a prom_constraints_id
 CreatePromConstraintsParameters is a reference to a hash where the following keys are defined:
-	genome_object_id has a value which is a PROM.genome_object_id
-	expression_data_collection_id has a value which is a PROM.expression_data_collection_id
-	regulatory_network_id has a value which is a PROM.regulatory_network_id
-	workspace_name has a value which is a PROM.workspace_name
-	token has a value which is a PROM.auth_token
+	genome_object_id has a value which is a genome_object_id
+	expression_data_collection_id has a value which is an expression_data_collection_id
+	regulatory_network_id has a value which is a regulatory_network_id
+	workspace_name has a value which is a workspace_name
+	token has a value which is an auth_token
 genome_object_id is a string
 expression_data_collection_id is a string
 regulatory_network_id is a string
@@ -1244,15 +1247,15 @@ prom_constraints_id is a string
 
 =begin text
 
-$params is a PROM.CreatePromConstraintsParameters
-$status is a PROM.status
-$prom_constraints_id is a PROM.prom_constraints_id
+$params is a CreatePromConstraintsParameters
+$status is a status
+$prom_constraints_id is a prom_constraints_id
 CreatePromConstraintsParameters is a reference to a hash where the following keys are defined:
-	genome_object_id has a value which is a PROM.genome_object_id
-	expression_data_collection_id has a value which is a PROM.expression_data_collection_id
-	regulatory_network_id has a value which is a PROM.regulatory_network_id
-	workspace_name has a value which is a PROM.workspace_name
-	token has a value which is a PROM.auth_token
+	genome_object_id has a value which is a genome_object_id
+	expression_data_collection_id has a value which is an expression_data_collection_id
+	regulatory_network_id has a value which is a regulatory_network_id
+	workspace_name has a value which is a workspace_name
+	token has a value which is an auth_token
 genome_object_id is a string
 expression_data_collection_id is a string
 regulatory_network_id is a string
@@ -1320,79 +1323,44 @@ sub create_prom_constraints
 	# check if the gene expression data collection from a workspace exists
 	my $get_object_params = {
 	    id => $e_id,
-	    type => "Unspecified",
+	    type => "KBaseFBA.BooleanGeneExpressionDataCollection",
 	    workspace => $workspace_name,
 	    auth => $token,
 	};
-	my $e_exists = $ws->has_object($get_object_params);
-	if(!$e_exists) {
+        my $exp_collection = $ws->get_object($get_object_params);
+	if(!defined $exp_collection) {
 	    $status = "FAILURE - no expression data collection with ID $e_id found!\n".$status;
 	}
 	# check if the regulatory network data from a workspace exists
 	$get_object_params->{id}=$r_id;
-	$get_object_params->{type}="Unspecified";
-	my $r_exists = $ws->has_object($get_object_params);
-	if(!$r_exists) {
+	$get_object_params->{type}="KBaseFBA.regulatory_network";
+        my $regnet = $ws->get_object($get_object_params)->{data}->{"regulatory_network"};
+	if(!defined $regnet) {
 	    $status = "FAILURE - no regulatory network data with ID $r_id found!\n".$status;
 	}
 	# check if the annotation data from a workspace exists
-	$get_object_params->{id}=$genome_id;
-	$get_object_params->{type}="Genome";
-	my $genome_exists = $ws->has_object($get_object_params);
-	
-	# get the genome so we can pull the annotation object
-	my $annot;
-	if(!$genome_exists) {
-	    $status = "FAILURE - no genome object in workspace with ID $genome_id found!\n".$status;
-	} else {
-	    # if genome exists, then grab the cooresponding annotation object by reference
-	    $get_object_params->{id}=$genome_id;
-	    $get_object_params->{type}="Genome";
-	    my $genome = $ws->get_object($get_object_params)->{data};
-	    $status .= "  -> fetched genome object.\n";
-	    $annot = $ws->get_object_by_ref( {reference => $genome->{annotation_uuid}, auth => $token} )->{data};
-	    $status .= "  -> fetched hidden annotation object by reference with uuid: '$genome->{annotation_uuid}'.\n";
-	}
-	
+    	$get_object_params->{id}=$genome_id;
+	$get_object_params->{type}="KBaseGenomes.Genome-1.0";
+        my $genome_stuff = $ws->get_object($get_object_params);
+	my $genome = $genome_stuff->{data};
 	# if both data sets exist, thecdn pull them down
 	my $found_error;
-	if($e_exists && $r_exists && $genome_exists) {
-	    
-	    # an Annotation object will have a 'features' key that lists the feature IDs in kbase
-	    # space, with a local UUID for internal mapping with the annotation object
-	    # here, we create the ID to UUID mapping based on the genome annotation object    
-	    
-	    my $id_2_uuid = {};
-	    my $feature_counter = 0;
-	    my $annot_uuid = $annot->{_wsUUID};
-	    my $features = $annot->{features};
-	    foreach my $f (@$features) {
-		$id_2_uuid->{$f->{id}} = $f->{uuid};
-		$feature_counter++;
-	    }
-	    $status .= "  -> genome annotation has $feature_counter features.\n";
-	    $status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
+	if(defined $exp_collection && defined $regnet && defined $genome) {
 	    
 	    # a regulatory network is a list where each element is a list in the form [TF, target, p1, p2]
 	    # it is initially parsed in from the workspace object, at which point p1 and p2 are computed
 	    my $regulatory_network = [];
-	    
-	    $get_object_params->{id}=$r_id;
-	    $get_object_params->{type}="Unspecified";
-	    my $regnet = $ws->get_object($get_object_params)->{data};
-	    my @lines = split /\n/, $regnet;
 	    my $reg_net_interaction_counter = 0;
+            my @lines = @$regnet;
 	    foreach my $line (@lines) {
-		chomp $line;
-		my @ids = split /\t/, $line;
 		$reg_net_interaction_counter++;
-		if( scalar(@ids) != 2 ) { $status = "ERROR - malformed line in regulatory network data: $line\n".$status; last; }
-		push @$regulatory_network, [$ids[0],$ids[1],-1,-1];
+		my $target = $line->{'target'};
+		my $tf = $line->{'TF'};
+		push @$regulatory_network, [$tf,$target,-1,-1];
 	    }
 	    
 	    print "reg network found, $reg_net_interaction_counter interactions\n";
 	    $status .= "  -> retrieved regulatory network with $reg_net_interaction_counter regulatory interactions.\n";
-	    $status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
 	    
 	    # now grab the expression data and store it in a parsed object
 	    # Note that this does not do any sort of error checking for IDs or anything else!!!
@@ -1408,10 +1376,7 @@ sub create_prom_constraints
 	    #    ...
 	    # ]
 	    my $expression_data_on_off_calls = [];
-	    $get_object_params->{id}=$e_id;
-	    $get_object_params->{type}="Unspecified";
-	    my $exp_collection = $ws->get_object($get_object_params);
-	    my $expression_data_id_list = $exp_collection->{data}->{expression_data};
+	    my $expression_data_id_list = $exp_collection->{data}->{expression_data_ids};
 	    $status .= "  -> retrieved expression data collection with ".scalar(@$expression_data_id_list)." experiments.\n";
 	    $status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
 	    #loop through each experiment
@@ -1436,17 +1401,13 @@ sub create_prom_constraints
 	    if(!$found_error) {
 		
 		# compute the interaction probability map; this is the central component of a prom model
-		# Note that currently there is no annotation object used.  How do we get it?  I don't see why we even need it to be honest?? Shouldn't
-		# the Prom model be defined automatically in terms of feature ids, and then only later is that mapped to rxns or other model internals?
-		my ($computation_log, $tfMap) = computeInteractionProbabilities($regulatory_network, $expression_data_on_off_calls, $id_2_uuid);
+		my ($computation_log, $tfMap) = computeInteractionProbabilities($regulatory_network, $expression_data_on_off_calls);
 		$status .= $computation_log;
 		$status .= "  -> computed regulation interaction probabilities\n";
-		$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
-		# print Dumper($tfMap)."\n";
 		
 		# use the ID server to generate a name for the prom constraints object
 		my $idserver = $self->{idserver};
-		my $prefix = $genome_id.".promconstraints.";
+		my $prefix = $genome_id.".promconstraint.";
 		my $id_number = $idserver->allocate_id_range($prefix,1);
 		if($id_number) {
 		    if($id_number ne '') {
@@ -1455,28 +1416,25 @@ sub create_prom_constraints
 		} else { $prom_constraints_id = $prefix."x"; }
 		my $prom_constraints = {
 			id => $prom_constraints_id,
-			annotation_uuid => $annot_uuid,
+			genome_ref => $workspace_name."/".$genome_id."/".$genome_stuff->{"metadata"}->[3],
 			transcriptionFactorMaps => $tfMap,
 			expression_data_collection_id => $e_id
 		};
-		#print Dumper($prom_constraints)."\n";
 		
 		# save the prom constraints to the workspace
-		my $encoded_json_PromModelConstraints = encode_json($prom_constraints);
-		print $encoded_json_PromModelConstraints."\n";
 		my $workspace_save_obj_params = {
 		    id => $prom_constraints_id,
-		    type => "PromConstraints",
-		    data => $encoded_json_PromModelConstraints,
+		    type => "KBaseFBA.PromConstraint",
+		    data => $prom_constraints,
 		    workspace => $workspace_name,
 		    command => "Bio::KBase::PROM::create_prom_constraints",
 		    auth => $token,
-		    json => 1,
+		    json => 0,
 		    compressed => 0,
 		    retrieveFromURL => 0,
 		};
 		my $object_metadata = $ws->save_object($workspace_save_obj_params);
-		$status = $status."  -> saving the new PromModelConstraints object ID:$prom_constraints_id\n";
+		$status = $status."  -> saving the new PromConstraint object ID:$prom_constraints_id\n";
 		$status .= "     ".timestr(timediff(Benchmark->new,$t_start))."\n";
 		$status = "SUCCESS.\n".$status;
 		
@@ -1588,14 +1546,14 @@ A KBase ID for a genome feature
 =begin html
 
 <pre>
-a PROM.kbase_id
+a kbase_id
 </pre>
 
 =end html
 
 =begin text
 
-a PROM.kbase_id
+a kbase_id
 
 =end text
 
@@ -1619,14 +1577,14 @@ A KBase ID for a genome
 =begin html
 
 <pre>
-a PROM.kbase_id
+a kbase_id
 </pre>
 
 =end html
 
 =begin text
 
-a PROM.kbase_id
+a kbase_id
 
 =end text
 
@@ -2001,10 +1959,10 @@ Data service, and simply imported here.
 
 <pre>
 a reference to a hash where the following keys are defined:
-id has a value which is a PROM.boolean_gene_expression_data_id
-on_off_call has a value which is a reference to a hash where the key is a PROM.feature_id and the value is a PROM.on_off_state
-expression_data_source has a value which is a PROM.source
-expression_data_source_id has a value which is a PROM.source
+id has a value which is a boolean_gene_expression_data_id
+on_off_call has a value which is a reference to a hash where the key is a feature_id and the value is an on_off_state
+expression_data_source has a value which is a source
+expression_data_source_id has a value which is a source
 
 </pre>
 
@@ -2013,10 +1971,10 @@ expression_data_source_id has a value which is a PROM.source
 =begin text
 
 a reference to a hash where the following keys are defined:
-id has a value which is a PROM.boolean_gene_expression_data_id
-on_off_call has a value which is a reference to a hash where the key is a PROM.feature_id and the value is a PROM.on_off_state
-expression_data_source has a value which is a PROM.source
-expression_data_source_id has a value which is a PROM.source
+id has a value which is a boolean_gene_expression_data_id
+on_off_call has a value which is a reference to a hash where the key is a feature_id and the value is an on_off_state
+expression_data_source has a value which is a source
+expression_data_source_id has a value which is a source
 
 
 =end text
@@ -2044,8 +2002,8 @@ a PROM Model. NOTE: this data object should be migrated to the Expression Data s
 
 <pre>
 a reference to a hash where the following keys are defined:
-id has a value which is a PROM.expression_data_collection_id
-expression_data_ids has a value which is a reference to a list where each element is a PROM.BooleanGeneExpressionData
+id has a value which is an expression_data_collection_id
+expression_data_ids has a value which is a reference to a list where each element is a BooleanGeneExpressionData
 
 </pre>
 
@@ -2054,8 +2012,8 @@ expression_data_ids has a value which is a reference to a list where each elemen
 =begin text
 
 a reference to a hash where the following keys are defined:
-id has a value which is a PROM.expression_data_collection_id
-expression_data_ids has a value which is a reference to a list where each element is a PROM.BooleanGeneExpressionData
+id has a value which is an expression_data_collection_id
+expression_data_ids has a value which is a reference to a list where each element is a BooleanGeneExpressionData
 
 
 =end text
@@ -2091,8 +2049,8 @@ the same namespace.
 
 <pre>
 a reference to a hash where the following keys are defined:
-TF has a value which is a PROM.feature_id
-target has a value which is a PROM.feature_id
+TF has a value which is a feature_id
+target has a value which is a feature_id
 
 </pre>
 
@@ -2101,8 +2059,8 @@ target has a value which is a PROM.feature_id
 =begin text
 
 a reference to a hash where the following keys are defined:
-TF has a value which is a PROM.feature_id
-target has a value which is a PROM.feature_id
+TF has a value which is a feature_id
+target has a value which is a feature_id
 
 
 =end text
@@ -2129,14 +2087,14 @@ the Regulation service, and simply imported here.
 =begin html
 
 <pre>
-a reference to a list where each element is a PROM.RegulatoryInteraction
+a reference to a list where each element is a RegulatoryInteraction
 </pre>
 
 =end html
 
 =begin text
 
-a reference to a list where each element is a PROM.RegulatoryInteraction
+a reference to a list where each element is a RegulatoryInteraction
 
 =end text
 
@@ -2223,7 +2181,7 @@ annotation namespace) to a group of regulatory target genes.
 <pre>
 a reference to a hash where the following keys are defined:
 transcriptionFactor_uuid has a value which is a string
-transcriptionFactorMapTargets has a value which is a reference to a list where each element is a PROM.RegulatoryTarget
+transcriptionFactorMapTargets has a value which is a reference to a list where each element is a RegulatoryTarget
 
 </pre>
 
@@ -2233,7 +2191,7 @@ transcriptionFactorMapTargets has a value which is a reference to a list where e
 
 a reference to a hash where the following keys are defined:
 transcriptionFactor_uuid has a value which is a string
-transcriptionFactorMapTargets has a value which is a reference to a list where each element is a PROM.RegulatoryTarget
+transcriptionFactorMapTargets has a value which is a reference to a list where each element is a RegulatoryTarget
 
 
 =end text
@@ -2307,10 +2265,10 @@ used to compute the interaction probabilities is provided for future reference.
 
 <pre>
 a reference to a hash where the following keys are defined:
-id has a value which is a PROM.prom_constraints_id
-annotation_uuid has a value which is a PROM.annotation_uuid
-transcriptionFactorMaps has a value which is a reference to a list where each element is a PROM.TFMap
-expression_data_collection_id has a value which is a PROM.expression_data_collection_id
+id has a value which is a prom_constraints_id
+annotation_uuid has a value which is an annotation_uuid
+transcriptionFactorMaps has a value which is a reference to a list where each element is a TFMap
+expression_data_collection_id has a value which is an expression_data_collection_id
 
 </pre>
 
@@ -2319,10 +2277,10 @@ expression_data_collection_id has a value which is a PROM.expression_data_collec
 =begin text
 
 a reference to a hash where the following keys are defined:
-id has a value which is a PROM.prom_constraints_id
-annotation_uuid has a value which is a PROM.annotation_uuid
-transcriptionFactorMaps has a value which is a reference to a list where each element is a PROM.TFMap
-expression_data_collection_id has a value which is a PROM.expression_data_collection_id
+id has a value which is a prom_constraints_id
+annotation_uuid has a value which is an annotation_uuid
+transcriptionFactorMaps has a value which is a reference to a list where each element is a TFMap
+expression_data_collection_id has a value which is an expression_data_collection_id
 
 
 =end text
@@ -2356,11 +2314,11 @@ Named parameters for 'create_prom_constraints' method.  Currently all options ar
 
 <pre>
 a reference to a hash where the following keys are defined:
-genome_object_id has a value which is a PROM.genome_object_id
-expression_data_collection_id has a value which is a PROM.expression_data_collection_id
-regulatory_network_id has a value which is a PROM.regulatory_network_id
-workspace_name has a value which is a PROM.workspace_name
-token has a value which is a PROM.auth_token
+genome_object_id has a value which is a genome_object_id
+expression_data_collection_id has a value which is an expression_data_collection_id
+regulatory_network_id has a value which is a regulatory_network_id
+workspace_name has a value which is a workspace_name
+token has a value which is an auth_token
 
 </pre>
 
@@ -2369,11 +2327,11 @@ token has a value which is a PROM.auth_token
 =begin text
 
 a reference to a hash where the following keys are defined:
-genome_object_id has a value which is a PROM.genome_object_id
-expression_data_collection_id has a value which is a PROM.expression_data_collection_id
-regulatory_network_id has a value which is a PROM.regulatory_network_id
-workspace_name has a value which is a PROM.workspace_name
-token has a value which is a PROM.auth_token
+genome_object_id has a value which is a genome_object_id
+expression_data_collection_id has a value which is an expression_data_collection_id
+regulatory_network_id has a value which is a regulatory_network_id
+workspace_name has a value which is a workspace_name
+token has a value which is an auth_token
 
 
 =end text

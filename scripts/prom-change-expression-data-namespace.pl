@@ -5,7 +5,7 @@ use Getopt::Long;
 
 use Bio::KBase::PROM::Client;
 use Bio::KBase::PROM::Util qw(get_prom_client get_auth_token);
-use Bio::KBase::workspaceService::Helpers qw(workspace);
+use Bio::KBase::workspace::ScriptHelpers qw(workspace);
 
 
 my $DESCRIPTION =

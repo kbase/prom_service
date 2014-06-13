@@ -44,7 +44,7 @@ our $defaultPromURL = "http://kbase.us/services/prom";
 #    ...
 # ]
 sub computeInteractionProbabilities {
-    my ($reg_network, $expression_data, $id_2_uuid_map) = @_;
+    my ($reg_network, $expression_data) = @_;
     
     # should throw in some error checking at some point.
     
@@ -59,23 +59,8 @@ sub computeInteractionProbabilities {
     ## calculate P(target = ON|TF = OFF) and P(target = ON|TF = ON)
     my $tfTempMap = {};
     foreach my $i (@$reg_network) {
-        my $TF = $i->[0]; my $TF_UUID = '';
-        my $TARGET = $i->[1]; my $TARGET_UUID = '';
-        
-        #map them to the new ID namespace
-        if( exists $id_2_uuid_map->{$TF}) {
-            $TF_UUID = $id_2_uuid_map->{$TF};
-        } else {
-            $status .= "  -> WARNING: could not find $TF in genome annotations!  Skipping this TF!\n";
-            next;
-        }
-        if( exists $id_2_uuid_map->{$TARGET}) {
-            $TARGET_UUID = $id_2_uuid_map->{$TARGET};
-        } else {
-            $status .= "  -> WARNING: could not find $TF in genome annotations!  Skipping this TARGET!\n";
-            next;
-        }
-        
+        my $TF = $i->[0];
+        my $TARGET = $i->[1];
         
         my $TF_off_count = 0;
         my $TF_off_TARGET_on_count = 0;
@@ -85,7 +70,6 @@ sub computeInteractionProbabilities {
         foreach my $experiment (@$expression_data) {
             if(!exists $experiment->{geneCalls}->{$TF}) { next; }
             if(!exists $experiment->{geneCalls}->{$TARGET}) { next; }
-            
             if( 1==$isOn{$experiment->{geneCalls}->{$TF}}  ) {
                 $TF_on_count++;
                 if( 1==$isOn{$experiment->{geneCalls}->{$TARGET}}  ) {
@@ -106,7 +90,7 @@ sub computeInteractionProbabilities {
             }
         }
         # we need to perform a conversion once we have the genome annotation object
-        my $tfMapTarget = {"target_uuid" => $TARGET_UUID }; # $geneid2featureid{$TARGET}};
+        my $tfMapTarget = {"target_ref" => $TARGET }; # $geneid2featureid{$TARGET}};
 	if ($TF_on_count != 0) { 
 	    $tfMapTarget->{"tfOnProbability"} = $TF_on_TARGET_on_count / $TF_on_count;
             #print "p1:".$tfMapTarget->{"tfOnProbability"}."\n";
@@ -115,17 +99,17 @@ sub computeInteractionProbabilities {
 	    $tfMapTarget->{"tfOffProbability"} = $TF_off_TARGET_on_count / $TF_off_count;
             #print "p2:".$tfMapTarget->{"tfOffProbability"}."\n";
 	} else { $tfMapTarget->{"tfOffProbability"} = 1; }
-        if(exists $tfTempMap->{$TF_UUID}) {
-            push @{$tfTempMap->{$TF_UUID}}, $tfMapTarget;
+        if(exists $tfTempMap->{$TF}) {
+            push @{$tfTempMap->{$TF}}, $tfMapTarget;
         } else {
-            $tfTempMap->{$TF_UUID} = [$tfMapTarget];
+            $tfTempMap->{$TF} = [$tfMapTarget];
         }
     }
     
     # repackage into the object that runFBA is expecting, which is not a hash, but a list of hashes
     my $tfMaps = [];
-    foreach my $TF_UUID (keys %$tfTempMap) {
-        push @{$tfMaps}, {"transcriptionFactor_uuid"=>$TF_UUID,"transcriptionFactorMapTargets"=>$tfTempMap->{$TF_UUID}};
+    foreach my $TF (keys %$tfTempMap) {
+        push @{$tfMaps}, {"transcriptionFactor_ref"=>$TF,"transcriptionFactorMapTargets"=>$tfTempMap->{$TF}};
     }
     
     return ($status,$tfMaps);

@@ -19,14 +19,14 @@ use Data::Dumper;
 
 # MAKE SURE WE LOCALLY HAVE JSON RPC LIBS INSTALLED
 use_ok("Bio::KBase::PROM::Client");
-use_ok("Bio::KBase::workspaceService::Client");
+use_ok("Bio::KBase::workspace::Client");
 use_ok("Bio::KBase::fbaModelServices::Client");
 use_ok("Bio::KBase::AuthToken");
 
 # AUTH INFORMATION FOR TESTING
-my $user_id='kbasepromuser1';
-my $password='open4me!';
-my $workspace_name="active_prom_test_workspace2";
+my $user_id='dejongh';
+my $password='k2014b@se';
+my $workspace_name="dejonghtest";
 my $token = Bio::KBase::AuthToken->new(user_id => $user_id, password => $password);
 ok(defined $token,"auth could get token");
 
@@ -42,19 +42,21 @@ my $status = '';
 
 
 # 0) BOOTUP THE PROM CLIENT (HOW ELSE CAN I INJECT THE CONFIG LOCATION IN A TEST SCRIPT ?!?!?!?)
-use Server;
+#use Server;
 $ENV{PROM_DEPLOYMENT_CONFIG}='deploy.cfg';
 $ENV{PROM_DEPLOYMENT_SERVICE_NAME}='prom_service';
-my ($pid, $url) = Server::start('PROM');
-#my $url = "http://localhost:7069"; my $pid = '??';
+#my ($pid, $url) = Server::start('PROM');
+my $url = "http://kbase.us/services/prom"; my $pid = '??';
 print "-> attempting to connect to:'".$url."' with PID=$pid\n";
 
-my $prom = Bio::KBase::PROM::Client->new($url, user_id=>$user_id, password=>$password);
+use Bio::KBase::PROM::PROMImpl;
+my $prom = Bio::KBase::PROM::PROMImpl->new;
+#my $prom = Bio::KBase::PROM::Client->new($url, user_id=>$user_id, password=>$password);
 ok(defined($prom),"instantiating PROM client");
 
 
 # 1) CREATE A WORKSPACE IF IT DOES NOT EXIST
-my $ws = Bio::KBase::workspaceService::Client->new($workspace_url);
+my $ws = Bio::KBase::workspace::Client->new($workspace_url);
 my $ws_list = $ws->list_workspaces( { auth=>$token->token() } );
 my $found = 0;
 foreach my $ws_name (@$ws_list) {
@@ -63,8 +65,6 @@ foreach my $ws_name (@$ws_list) {
 if( $found != 1 ) {
     my $create_workspace_params = {
         workspace => $workspace_name,
-        default_permission => 'n',
-        auth => $token->token()
     };
     my $workspace_meta = $ws->create_workspace($create_workspace_params);
     ok(defined $workspace_meta, "workspace creation");
@@ -81,9 +81,9 @@ my $genome_to_workspace_params = {
     workspace => $workspace_name,
     auth => $token->token(),
 };
-my $genome_meta = $fba->genome_to_workspace($genome_to_workspace_params);
-ok(defined $genome_meta, "genome import seemed to work");
-print "Imported genome to workspace: \n".Dumper($genome_meta)."\n";
+#my $genome_meta = $fba->genome_to_workspace($genome_to_workspace_params);
+#ok(defined $genome_meta, "genome import seemed to work");
+#print "Imported genome to workspace: \n".Dumper($genome_meta)."\n";
 
 
 # 3) USE THE PROM SERVICE TO LOAD SOME REGULATORY NETWORK DATA
@@ -150,18 +150,5 @@ print "PROM_ID: \n$prom_id\n";
 ok($prom_id,"prom ID was defined");
 ok($prom_id ne "","prom ID not empty, which means it was probably created successfully");
 
-
-# 8) RUN AN FBA MODEL WITH THE PROM CONSTRAINTS
-# not necessary here - this is not a test of the PROM Service - where can we do integration testing ?!?!?
-
-
-# 9) DELETE THE WORKSPACE (don't clutter up the db)
-my $delete_workspace_params = {
-    workspace => $workspace_name,
-    auth => $token->token()
-};
-my $workspace_meta=$ws->delete_workspace($delete_workspace_params);
-ok(defined $workspace_meta, "workspace deletion");
-print "Deleted workspace: \n".Dumper($workspace_meta)."\n";
 
 done_testing();
