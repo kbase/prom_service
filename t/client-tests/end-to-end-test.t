@@ -24,8 +24,8 @@ use_ok("Bio::KBase::fbaModelServices::Client");
 use_ok("Bio::KBase::AuthToken");
 
 # AUTH INFORMATION FOR TESTING
-my $user_id='dejongh';
-my $password='k2014b@se';
+my $user_id='';
+my $password='';
 my $workspace_name="dejonghtest";
 my $token = Bio::KBase::AuthToken->new(user_id => $user_id, password => $password);
 ok(defined $token,"auth could get token");
